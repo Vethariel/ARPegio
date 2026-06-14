@@ -1,0 +1,18 @@
+{
+  "window_size": 50,
+  "output": "features_l2_labeled.csv",
+  "pcap_sources": [
+    {"file": "victima1.pcapng", "source": "victima1"},
+    {"file": "victima2.pcapng", "source": "victima2"}
+  ],
+  "label_intervals": [
+    [1781423017.858, 1781423189.698, "normal"],
+    [1781423189.698, 1781423499.904, "arp_spoof"],
+    [1781423499.904, 1781423581.801, "normal"],
+    [1781423581.801, 1781423584.350, "mac_flood"],
+    [1781423584.350, 1781423776.170, "normal"],
+    [1781423776.170, 1781424116.567, "port_scan"],
+    [1781424116.567, 1781424955.002, "normal"],
+    [1781424955.002, 1781425096.749, "arp_recon"]
+  ]
+}

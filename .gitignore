@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# LaTeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.synctex.gz
+
+# Large generated outputs (optional — descomentar si no quieres versionar PCAPs)
+# data/raw/pcap/*.pcapng
+# data/processed/*.csv

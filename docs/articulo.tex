@@ -1,0 +1,736 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,english]{babel}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Sistema de Detección de Anomalías en Redes LAN IEEE~802.3
+mediante Aprendizaje No Supervisado y Perfilado
+de Comportamiento del Tráfico}
+
+\author{
+  \IEEEauthorblockN{Daniel Alonso Gracia Pinto}
+  \IEEEauthorblockA{
+    \textit{Redes de Computadores -- Grupo 3} \\
+    \textit{Universidad Nacional de Colombia} \\
+    Bogotá, Colombia \\
+    dagraciap@unal.edu.co
+  }
+}
+
+\maketitle
+
+% ---------------------------------------------------------------
+%  ABSTRACT (English)
+% ---------------------------------------------------------------
+\begin{abstract}
+Institutional IEEE~802.3 LANs are the operational backbone of critical
+services, yet they remain largely blind to early-stage threats that
+emerge below the IP layer. Attacks such as ARP spoofing, MAC flooding,
+silent port scanning, and ARP reconnaissance manifest as subtle deviations
+in otherwise legitimate Layer~2 traffic---deviations that
+signature-based intrusion detection systems consistently fail to
+capture. Existing Layer~2 security solutions either require active
+agents deployed on every network node or depend on exhaustively labeled
+attack datasets, rendering them impractical for real institutional
+environments. This paper proposes an unsupervised anomaly detection
+system anchored at the Ethernet frame level, built around a lightweight
+autoencoder that learns a behavioral baseline of normal traffic without
+any labeled data. A statistical threshold calibration mechanism controls
+the false-positive rate without requiring attack samples, and an
+automatic alert prioritization engine ranks detected anomalies by
+severity, frequency, and node impact to mitigate operator alert fatigue.
+The system is evaluated on traffic captured in a controlled IEEE~802.3
+LAN emulated with GNS3, comprising four Layer~2 attack families---ARP
+spoofing, MAC flooding, port scanning, and ARP reconnaissance---and
+periods of legitimate baseline traffic. From two victim-side captures,
+959 temporal windows of native Ethernet features were extracted and
+labeled for evaluation; model training uses normal traffic only.
+Results demonstrate the viability of passive, label-free monitoring for
+proactive IEEE~802.3 LAN cybersecurity, and highlight the open research
+gap in Layer~2-anchored unsupervised network intrusion detection.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Anomaly detection, unsupervised learning, autoencoder, IEEE~802.3,
+Ethernet, ARP spoofing, NIDS, alert prioritization, Layer~2 security.
+\end{IEEEkeywords}
+
+% ---------------------------------------------------------------
+%  RESUMEN (Spanish)
+% ---------------------------------------------------------------
+\begin{otherlanguage}{spanish}
+\renewcommand{\abstractname}{Resumen}
+\begin{abstract}
+Las redes LAN IEEE~802.3 institucionales constituyen el núcleo operativo
+de servicios críticos, pero permanecen en gran medida ciegas ante amenazas
+tempranas que se originan por debajo de la capa IP. Ataques como ARP
+spoofing, MAC flooding, escaneo silencioso de puertos y reconocimiento ARP
+se manifiestan como desviaciones sutiles en el tráfico legítimo de capa~2,
+desviaciones que los sistemas de detección de intrusos basados en firmas
+no logran capturar consistentemente. Las soluciones de seguridad existentes
+para capa~2 exigen agentes activos en cada nodo o dependen de conjuntos
+de datos de ataques exhaustivamente etiquetados, lo que las hace inviables
+en entornos institucionales reales. Este artículo propone un sistema de
+detección de anomalías no supervisado anclado en la trama Ethernet,
+construido sobre un \textit{autoencoder} ligero que aprende un perfil de
+normalidad del tráfico sin requerir datos etiquetados. Un mecanismo de
+calibración estadística del umbral controla la tasa de falsos positivos
+sin necesidad de muestras de ataque, y un motor automático de priorización
+de alertas clasifica las anomalías detectadas según severidad, frecuencia
+e impacto en el nodo para mitigar el \textit{alert fatigue} del operador.
+El sistema se evalúa sobre tráfico capturado en una LAN IEEE~802.3
+controlada emulada con GNS3, que incluye cuatro familias de ataque de
+capa~2---ARP spoofing, MAC flooding, escaneo de puertos y
+reconocimiento ARP---intercaladas con períodos de tráfico legítimo.
+A partir de dos capturas en nodos víctima se extrajeron 959 ventanas
+temporales de \textit{features} Ethernet nativas, etiquetadas
+únicamente para evaluación; el entrenamiento emplea solo tráfico normal.
+Los resultados demuestran la viabilidad del monitoreo pasivo sin etiquetas
+para la ciberseguridad proactiva de redes LAN IEEE~802.3, e identifican
+la brecha de investigación abierta en detección no supervisada anclada
+en capa~2 Ethernet.
+\end{abstract}
+
+\renewcommand{\IEEEkeywordsname}{Palabras clave}
+\begin{IEEEkeywords}
+Detección de anomalías, aprendizaje no supervisado, \textit{autoencoder},
+IEEE~802.3, Ethernet, ARP spoofing, NIDS, priorización de alertas,
+seguridad en capa~2.
+\end{IEEEkeywords}
+\end{otherlanguage}
+
+% ---------------------------------------------------------------
+%  I. INTRODUCCIÓN
+% ---------------------------------------------------------------
+\section{Introducción}
+
+Las redes LAN IEEE~802.3 institucionales constituyen el núcleo operativo
+de servicios críticos, exigiendo niveles óptimos de seguridad y
+disponibilidad continua. Sin embargo, los ataques tempranos, tales como el escaneo silencioso de
+puertos, el reconocimiento ARP, el ARP spoofing y el MAC flooding, se
+camuflan hábilmente como variaciones sutiles del tráfico legítimo. Estas amenazas logran establecerse en la red antes de que el
+sistema advierta que está bajo ataque~\cite{tufan2021}. Ante este
+panorama adverso, los sistemas de detección de intrusos basados en
+firmas fallan consistentemente frente a vulnerabilidades desconocidas o
+amenazas adaptativas, evidenciando la necesidad de transitar hacia
+enfoques centrados en el comportamiento de la red~\cite{gamage2020}.
+
+A pesar de la urgencia de este problema, persisten dos brechas concretas
+en la literatura actual. La primera radica en que los estándares de
+\textit{feature selection} para plataformas NIDS se encuentran
+fuertemente anclados en flujos IP, empleando protocolos como NetFlow en
+las capas~3 y~4. Esta perspectiva ignora sistemáticamente la capa~2
+Ethernet, siendo este el nivel exacto de la arquitectura donde ocurren
+ataques de suplantación como el ARP spoofing y la saturación de tablas
+mediante MAC flooding; además, las características basadas en flujos
+presentan un retraso inherente frente a la captura directa a nivel de
+paquete~\cite{sarhan2022,he2023}. La segunda brecha evidencia que las
+soluciones de seguridad existentes diseñadas para la capa~2 requieren
+agentes activos instalados en cada nodo o dependen de vastos conjuntos
+de datos exhaustivamente etiquetados, exigencias técnicas que las hacen
+completamente inviables para su despliegue en entornos institucionales
+reales~\cite{morsy2022,sakhawat2019}.
+
+Por consiguiente, no existe en la actualidad una solución que combine
+simultáneamente tres factores fundamentales: una detección no supervisada
+anclada en la capa~2 IEEE~802.3; un monitoreo verdaderamente pasivo y
+sin agentes que entrene su modelo utilizando únicamente el tráfico normal
+de la red; y un motor automático que clasifique las amenazas para reducir
+el \textit{alert fatigue} que abruma a los operadores de
+seguridad~\cite{tariq2025}. Frente a esta carencia, este proyecto propone
+un \textit{autoencoder} no supervisado diseñado para aprender un perfil
+robusto de normalidad del tráfico Ethernet y detectar desviaciones
+significativas, complementado con un motor de priorización basado en la
+severidad, frecuencia e impacto de las anomalías. La elección de un
+método no supervisado se justifica en la realidad operativa: en una LAN
+institucional, etiquetar todas las variaciones de tráfico malicioso es
+una tarea inviable. Si bien la literatura reconoce que los métodos
+supervisados suelen igualar o superar el rendimiento de los no
+supervisados en entornos de prueba estructurados, el enfoque no
+supervisado no se plantea aquí como superior en abstracto, sino como la
+única alternativa técnica viable frente a la ausencia absoluta de
+etiquetas en este escenario real~\cite{gamage2020}.
+
+En respuesta a estas limitaciones, el presente artículo introduce tres
+contribuciones específicas. Primero, se plantea una arquitectura de
+monitoreo pasivo que captura tramas Ethernet en un punto de visibilidad
+del segmento LAN---análogo a un puerto espejo (\textit{SPAN})---sin
+requerir agentes en los nodos víctima. Segundo, se desarrolla un modelo de detección de
+anomalías no supervisado fundamentado en un \textit{autoencoder}, el
+cual emplea una calibración de umbral estadística sin depender de datos
+etiquetados. Tercero, se integra un motor de priorización automático de
+alertas configurado según la severidad, frecuencia y el nivel de impacto
+en el nodo afectado. El diseño propuesto se fundamenta en criterios
+estrictos que guían toda la metodología: la resiliencia ante la
+manipulación adversaria para evitar la evasión del
+modelo~\cite{he2023}, la viabilidad computacional para operar ágilmente
+en entornos reales~\cite{injadat2021}, y la reproducibilidad basada en
+el rigor experimental~\cite{yang2022}. El resto del artículo se organiza
+de la siguiente manera: la Sección~II revisa los trabajos relacionados;
+la Sección~III describe la metodología propuesta; la Sección~IV detalla
+la configuración experimental; la Sección~V presenta y discute los
+resultados; y la Sección~VI concluye el trabajo.
+
+% ---------------------------------------------------------------
+%  II. TRABAJOS RELACIONADOS
+% ---------------------------------------------------------------
+\section{Trabajos Relacionados}
+ 
+\subsection{NIDS no supervisado}
+El enfoque no supervisado para sistemas de detección de intrusos en redes
+(NIDS) ha ganado una tracción significativa, pero presenta limitaciones
+persistentes en términos de generalización y viabilidad según el contexto
+de despliegue. Como punto de partida en este debate, Gamage y Samarabandu
+establecen que los métodos no supervisados son viables en la práctica,
+aunque suelen tener un rendimiento inferior en los \textit{benchmarks}
+tradicionales frente a los modelos supervisados; no obstante, su
+verdadera ventaja competitiva radica en contextos operativos que carecen
+de etiquetas~\cite{gamage2020}. Posteriormente, Griffin et al. presentan
+un \textit{ensemble} de \textit{autoencoders} para operar en tiempo real
+sobre arquitecturas SDN~\cite{griffinyang2022}. Aunque efectivo, este
+modelo presenta una complejidad computacional mayor que la nuestra y
+asume una infraestructura SDN que rara vez está disponible en una LAN
+institucional típica. Por su parte, Antunes et al. realizan un riguroso
+\textit{benchmark} de métodos de \textit{deep learning} para NIDS,
+evidenciando claras inconsistencias y un bajo rendimiento al momento de
+detectar ataques de infiltración~\cite{antunes2022}. Esto subraya la
+necesidad de un anclaje más profundo en la red. La limitación común de
+estos trabajos es que operan exclusivamente sobre flujos IP (como
+NetFlow), ignorando el nivel base donde los ataques internos realmente
+se originan.
+ 
+\subsection{LAN institucional}
+La literatura que aborda entornos de redes institucionales reales es
+escasa y habitualmente presenta restricciones críticas relacionadas con
+la escala de la red o la dependencia absoluta de la supervisión de datos.
+Tufan et al. validan la existencia de esta problemática en entornos de
+producción mediante pruebas con ataques de reconocimiento en una red
+institucional real, confirmando la vulnerabilidad del entorno, aunque
+basan su propuesta en enfoques supervisados que limitan su aplicabilidad
+autónoma~\cite{tufan2021}. En un esfuerzo por abordar despliegues de
+mayor tamaño, Sun et al. proponen el uso de \textit{Segmented Federated
+Learning} para LANs a gran escala~\cite{sun2021ojcoms}. Si bien este
+enfoque escala adecuadamente, exige una coordinación estricta entre
+nodos, lo cual resulta inviable sin una infraestructura federada
+dedicada. Dentro de estas redes institucionales, el vector de ataque más
+crítico e ignorado ocurre de manera insidiosa en la capa~2 Ethernet.
+ 
+\subsection{Detección en capa 2 IEEE 802.3}
+La investigación enfocada en la capa~2 existe, pero la mayoría de las
+soluciones dependen de la modificación de protocolos, agentes activos o
+esquemas estrictamente supervisados. Morsy y Nashat proponen D-ARP para
+mitigar el \textit{ARP spoofing}, siendo esta una solución activa que
+altera el comportamiento estándar del protocolo y exige un control total
+sobre la infraestructura subyacente~\cite{morsy2022}. Prasad y Chandra
+combinan técnicas de aprendizaje automático con \textit{device profiling}
+para lograr un objetivo similar~\cite{prasad2022}; sin embargo, su
+enfoque es supervisado y demanda la instalación de aplicaciones cliente
+o agentes por nodo. El modelo más cercano a nuestra propuesta es el de
+Sun et al., quienes utilizan un \textit{autoencoder} para procesar
+actividad ARP sospechosa~\cite{sun2022ccnc}. Aunque meritorio, dicho
+trabajo carece de un anclaje explícito al estándar IEEE~802.3 y no
+incluye un motor de priorización. Finalmente, Sakhawat et al. definen
+características ARP en una LAN conmutada mediante una solución basada en
+agentes~\cite{sakhawat2019}, un obstáculo de implementación que nuestra
+propuesta supera al basarse netamente en monitoreo pasivo. Ninguno de
+estos trabajos aborda el problema de la sobrecarga operativa generada por
+las alertas, el eslabón final que completa la brecha hacia una solución
+autónoma.
+ 
+\subsection{Priorización de alertas en SOCs}
+La priorización de alertas se reconoce ampliamente como un desafío
+crítico, pero las alternativas existentes en la literatura dependen
+excesivamente de la intervención humana o conjuntos de datos previamente
+etiquetados, factores incompatibles con un \textit{pipeline} analítico
+totalmente automático. Tariq et al. definen la \textit{alert fatigue}
+como un cuello de botella paralizante en los SOCs y determinan que la
+severidad, frecuencia e impacto son los criterios definitivos para
+abordarla~\cite{tariq2025}, premisa que motiva directamente el diseño de
+nuestro motor de priorización. En paralelo, Aminanto et al. utilizan un
+\textit{autoencoder} apilado para reducir los falsos positivos antes de
+la fase de priorización~\cite{aminanto2020}; esto representa una
+arquitectura combinada alternativa a nuestra propuesta, pero delega el
+\textit{autoencoder} a un mero rol de filtro y no como el motor de
+detección principal. De manera similar, Jalalvand et al. estructuran un
+marco integral de criterios para la priorización en
+SOCs~\cite{jalalvand2024}, que si bien fundamenta los parámetros que
+adopta nuestro motor, está fuertemente orientado a facilitar la toma de
+decisiones humana en esquemas colaborativos. Por último, Carrera et al.
+implementan detección \textit{near real-time} combinando múltiples
+algoritmos no supervisados~\cite{carrera2022}, resultando en una
+arquitectura sustancialmente más compleja que nuestra propuesta, y que
+descartamos para nuestro contexto debido al alto \textit{overhead}
+computacional que introduce en la red.
+ 
+La literatura existente logra colectivamente avances significativos en
+modelos de \textit{deep learning}, visibilidad de capa de enlace y la
+gestión de la fatiga de alertas, pero invariablemente aborda estos retos
+de forma aislada o asumiendo infraestructuras fuertemente supervisadas o
+intervenidas. La brecha específica que ningún trabajo previo llena, y que
+esta investigación resuelve integralmente, es la consolidación de un
+sistema NIDS para redes IEEE~802.3 que opere de forma puramente no
+supervisada, sin requerir agentes en los nodos, y que integre de forma
+nativa un motor de priorización automático para garantizar la viabilidad
+operativa en entornos reales.
+
+% ---------------------------------------------------------------
+%  III. METODOLOGÍA
+% ---------------------------------------------------------------
+\section{Metodología}
+
+\subsection{Visión general del sistema}
+El diseño metodológico propuesto se estructura como un \textit{pipeline}
+de extremo a extremo compuesto por cuatro etapas estrictamente
+secuenciales. La primera etapa realiza la captura pasiva del tráfico
+Ethernet en el segmento protegido, emulando el despliegue de un IDS
+pasivo con visibilidad de capa~2. La segunda fase ejecuta la extracción
+y normalización de características nativas de tramas IEEE~802.3.
+Posteriormente, la tercera etapa detecta las desviaciones mediante un
+modelo \textit{autoencoder} de aprendizaje no supervisado. Finalmente,
+la cuarta fase procesa estos eventos a través de un motor de
+priorización automática de alertas, evaluadas según su severidad,
+frecuencia e impacto en el nodo. Durante el entrenamiento y la
+calibración del umbral, ninguna etapa consume etiquetas de ataque; las
+etiquetas temporales del \textit{dataset} experimental se reservan
+exclusivamente para la evaluación posterior del rendimiento.
+
+\subsection{Arquitectura del autoencoder}
+La detección de desviaciones conductuales se fundamenta en una
+arquitectura \textit{encoder-decoder} simétrica y no supervisada. El
+componente \textit{encoder} recibe el vector de características
+normalizado y, mediante dos capas densas con funciones de activación
+ReLU, realiza una reducción dimensional progresiva hacia un espacio
+latente, el cual contiene la representación comprimida y fundamental del
+comportamiento normal de la red LAN. En contraposición, el bloque
+\textit{decoder} procesa este espacio latente para reconstruir de forma
+simétrica el vector original en la salida. El modelo se optimiza
+empleando el error cuadrático medio (\textit{Mean Squared Error}, MSE)
+como función de pérdida, entrenándose exclusivamente con tráfico
+legítimo. Debido a que la red aprende únicamente las regularidades
+estadísticas de la normalidad, la presencia de tráfico anómalo se
+manifiesta a través de un error de reconstrucción elevado. Este enfoque
+basado en un \textit{autoencoder} monolítico se elige por su simplicidad
+analítica y efectividad para establecer líneas base de seguridad sin
+requerir etiquetas~\cite{li2020}, consolidando al MSE como una métrica
+robusta e interpretable para la cuantificación de anomalías en entornos
+de red~\cite{song2021}. Asimismo, frente a soluciones complejas basadas
+en un \textit{ensemble} de múltiples \textit{autoencoders} orientados a
+redes lógicas~\cite{griffinyang2022}, la arquitectura propuesta minimiza
+el \textit{overhead} computacional y resulta óptima y suficiente para
+representar las dinámicas de la capa de enlace sin comprometer los
+recursos del sistema.
+
+La adopción de esta arquitectura modular obedece directamente a la
+necesidad de establecer un marco de trabajo estructurado que garantice un
+estricto rigor experimental y metodológico en la evaluación de sistemas
+de detección~\cite{yang2022}. Asimismo, la estructuración en un
+\textit{pipeline} multi-etapa resulta esencial para asegurar la
+viabilidad computacional del modelo, dado que permite reducir la
+complejidad general del procesamiento continuo y viabiliza su despliegue
+ágil en entornos de red reales~\cite{injadat2021}.
+
+\subsection{Adquisición de datos en laboratorio virtual}
+Para materializar el monitoreo pasivo de capa~2 sin agentes en las
+víctimas, se emuló un segmento LAN IEEE~802.3 en GNS3 sobre Fedora,
+interconectando dos nodos Alpine Linux (víctimas), un nodo Kali Linux
+(atacante) y un \textit{Open vSwitch} (OVS) como conmutador central del
+segmento \texttt{192.168.1.0/24}. Las direcciones estáticas asignadas
+fueron \texttt{192.168.1.10} (Alpine-1), \texttt{192.168.1.20}
+(Alpine-2) y \texttt{192.168.1.99} (Kali). La conectividad ICMP entre
+víctimas se verificó antes de iniciar la recolección.
+
+La captura no se realizó en el nodo atacante---escenario poco realista
+para un IDS de producción---sino en los enlaces físicos simulados entre
+cada víctima y el OVS, mediante la captura integrada de GNS3 a nivel de
+hipervisor. Este procedimiento replica un punto de observación neutral
+del segmento, equivalente operativamente a un puerto espejo (\textit{SPAN})
+o a un TAP de red: el sensor observa el tráfico que llega a cada
+estación protegida, incluyendo tramas ARP, \textit{broadcasts} y tráfico
+inter-víctima que un host individual no necesariamente genera. Se
+descartó depender de \textit{tcpdump} dentro de Alpine---sin paquetes
+disponibles offline---y de configuraciones de \textit{port mirroring}
+manuales sobre el OVS embebido de GNS3, que resultaron frágiles frente a
+capturas promiscuas desde Kali.
+
+La sesión experimental se ejecutó como una única captura continua por
+víctima, con fases alternadas de tráfico legítimo y ataques controlados
+desde Kali. La Tabla~\ref{tab:secuencia_ataques} resume la secuencia.
+Entre fases se insertaron períodos de tráfico normal (ICMP entre
+víctimas) para delimitar temporalmente cada familia de ataque en los
+archivos \texttt{.pcapng}, de modo que el \textit{dataset} refleje la
+mezcla realista entre baseline y anomalías observada en operación.
+
+\begin{table}[htbp]
+\caption{Secuencia experimental de recolección en GNS3}
+\label{tab:secuencia_ataques}
+\centering
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{clll}
+\hline
+\textbf{Fase} & \textbf{Duración} & \textbf{Actividad} & \textbf{Herramienta} \\
+\hline
+1 & $\sim$3 min & Tráfico normal (ICMP) & \texttt{ping} en Alpine \\
+2 & $\sim$2 min & ARP spoofing / MITM & \texttt{arpspoof} en Kali \\
+3 & $\sim$1 min & Pausa normal & \texttt{ping} en Alpine \\
+4 & $\sim$1 min & MAC flooding & \texttt{macof} en Kali \\
+5 & $\sim$1 min & Pausa normal & \texttt{ping} en Alpine \\
+6 & $\sim$3--5 min & Port scan & \texttt{nmap} en Kali \\
+7 & --- & ARP reconnaissance & \texttt{arping} en Kali \\
+\hline
+\end{tabular}
+\end{table}
+
+Las capturas resultantes (\texttt{victima1.pcapng}, \texttt{victima2.pcapng})
+contienen $\approx$24\,000 tramas Ethernet cada una, con una duración
+total de 34.6~minutos y \textit{link-type} EN10MB, confirmando análisis a
+nivel de trama IEEE~802.3.
+
+\subsection{Selección de características y preprocesamiento}
+El vector de \textit{features} se limita a métricas nativas de capa~2
+extraídas con Scapy sobre ventanas temporales de 50 tramas consecutivas.
+Las dimensiones implementadas son: (i)~tasa de tramas ARP
+(\texttt{arp\_rate}); (ii)~ratio \textit{ARP request/reply}
+(\texttt{arp\_req\_reply\_ratio}); (iii)~entropía de direcciones MAC
+origen (\texttt{mac\_entropy}); (iv)~conteo de MAC origen y destino
+únicas; (v)~estadísticos de longitud de trama Ethernet
+(\texttt{frame\_len\_mean}, \texttt{frame\_len\_std},
+\texttt{frame\_len\_min}, \texttt{frame\_len\_max}); y (vi)~ratio de
+tramas broadcast. Esta selección cubre directamente las familias de
+ataque evaluadas: el ARP spoofing eleva \texttt{arp\_rate} con bajo
+\textit{request/reply}; el MAC flooding concentra \texttt{mac\_entropy}
+y \texttt{unique\_src\_macs}; el escaneo de puertos reduce
+\texttt{frame\_len\_std}; y el reconocimiento ARP mantiene
+\textit{arp\_rate} elevado con patrón distinto al envenenamiento activo.
+Este anclaje en la capa de enlace cubre el punto ciego metodológico
+identificado en sistemas basados exclusivamente en flujos
+IP~\cite{sarhan2022,sun2022ccnc}.
+
+Respecto al preprocesamiento, se aplica una normalización \textit{min-max}
+para escalar los datos al rango $[0,1]$. Las ventanas se etiquetan
+post-\textit{hoc} según el timestamp central de cada ventana y los
+intervalos temporales de la Tabla~\ref{tab:secuencia_ataques}, con cinco
+clases: \texttt{normal}, \texttt{arp\_spoof}, \texttt{mac\_flood},
+\texttt{port\_scan} y \texttt{arp\_recon}. El entrenamiento del
+\textit{autoencoder} y la calibración de $\theta$ emplean únicamente
+ventanas \texttt{normal}; las etiquetas de ataque se reservan para medir
+\textit{recall} y \textit{precision} en evaluación. Por política de
+diseño, no se realiza imputación de valores faltantes; las tramas sin
+capa Ethernet se descartan al particionar ventanas.
+
+\subsection{Calibración estadística del umbral}
+El mecanismo de calibración del sistema para la identificación de
+desviaciones se estructura en tres pasos analíticos. Primero, una vez
+finalizado el entrenamiento del \textit{autoencoder}, se calcula el
+error de reconstrucción sobre un conjunto de validación compuesto
+íntegramente por tráfico normal que el modelo no ha visto previamente.
+Este procedimiento permite extraer la distribución empírica del error
+inherente al comportamiento legítimo de la red. Segundo, el umbral de
+decisión $\theta$ se fija dinámicamente seleccionando un percentil
+superior de esta distribución empírica, típicamente el percentil~95
+o~99. Durante la fase de inferencia, cualquier muestra cuyo error de
+reconstrucción supere estrictamente a $\theta$ se clasifica de forma
+automática como una anomalía. Este enfoque garantiza la detección sin
+requerir una sola muestra de ataque en la fase de
+ajuste~\cite{zavrak2020}. Tercero, la adopción de este límite cuenta con
+una profunda justificación estadística, dado que el percentil elegido
+permite controlar de manera matemática y directa la tasa de falsos
+positivos proyectada sobre el tráfico normal de la LAN~\cite{zhang2023}.
+La elección de esta calibración estadística por percentil, en claro
+contraste con alternativas que emplean umbrales numéricos fijos o
+algoritmos de \textit{clustering} en el espacio latente, se fundamenta
+en su alta interpretabilidad probabilística y su nula dependencia de
+datos etiquetados~\cite{maleki2021}. El valor paramétrico exacto del
+percentil utilizado constituye un hiperparámetro que se detalla en la
+configuración experimental.
+
+\subsection{Motor de priorización de alertas}
+El motor de priorización evalúa cada alerta generada asignándole un
+puntaje compuesto derivado de tres dimensiones independientes. La
+primera dimensión es la severidad, definida como la magnitud del error
+de reconstrucción que supera el umbral estadístico $\theta$, normalizada
+al rango $[0,1]$. La segunda dimensión corresponde a la frecuencia, la
+cual cuantifica el número de alertas emitidas por un mismo nodo origen
+dentro de una ventana temporal deslizante. La tercera dimensión evalúa
+el impacto, clasificando el nodo afectado según su rol jerárquico dentro
+de la topología de la red, otorgando mayor peso a servidores críticos,
+seguidos de estaciones cliente y dispositivos IoT. El puntaje de
+prioridad final se calcula como una suma ponderada de estas tres
+métricas, con pesos configurables directamente por el operador de
+seguridad.
+
+El diseño de este mecanismo se fundamenta en las necesidades operativas
+de los Centros de Operaciones de Seguridad (SOCs), adoptando los
+criterios definitivos establecidos en la literatura especializada para
+mitigar la fatiga de alertas~\cite{tariq2025,jalalvand2024}. A
+diferencia de enfoques alternativos que emplean \textit{autoencoders}
+como filtros previos para reducir falsos positivos antes de la
+priorización~\cite{aminanto2020}, o de arquitecturas
+\textit{near real-time} que introducen un alto \textit{overhead}
+computacional en la red~\cite{carrera2022}, el motor propuesto procesa
+el flujo de manera automatizada sin requerir etiquetas ni intervención
+humana. Finalmente, la implementación de la ventana temporal deslizante
+permite correlacionar eventos continuos, facilitando la detección de
+patrones de ataque sostenidos y adaptativos que, de otro modo, se
+registrarían como alertas individuales inofensivas de muy baja
+severidad.
+
+% ---------------------------------------------------------------
+%  IV. CONFIGURACIÓN EXPERIMENTAL
+% ---------------------------------------------------------------
+\section{Configuración Experimental}
+
+\subsection{Dataset L2 generado}
+A partir de las capturas \texttt{victima1.pcapng} y \texttt{victima2.pcapng}
+se construyó el archivo \texttt{features\_l2\_labeled.csv} mediante el
+\textit{pipeline} descrito en la Sección~III. Cada fila corresponde a
+una ventana de 50 tramas consecutivas y a las 11 \textit{features}
+numéricas de capa~2, más metadatos de tiempo (\texttt{t\_start},
+\texttt{t\_end}), fuente (\texttt{victima1}/\texttt{victima2}) y etiqueta
+de evaluación. La Tabla~\ref{tab:distribucion_labels} resume la
+distribución resultante tras combinar ambas perspectivas de captura.
+
+\begin{table}[htbp]
+\caption{Distribución de ventanas etiquetadas (959 en total)}
+\label{tab:distribucion_labels}
+\centering
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lrr}
+\hline
+\textbf{Etiqueta} & \textbf{Ventanas} & \textbf{Señal L2 dominante} \\
+\hline
+\texttt{normal}      & 116 & Baseline ICMP / tráfico legítimo \\
+\texttt{arp\_spoof}  &   6 & \texttt{arp\_rate} alto, bajo req/reply \\
+\texttt{mac\_flood}  & 795 & 50 MACs únicas, \texttt{mac\_entropy}$\approx$3.91 \\
+\texttt{port\_scan}  &  36 & \texttt{frame\_len\_std} bajo \\
+\texttt{arp\_recon}  &   6 & \texttt{arp\_rate}$=1.0$, patrón de sondeo \\
+\hline
+\end{tabular}
+\end{table}
+
+El desbalance hacia \texttt{mac\_flood} refleja la naturaleza de ráfaga
+del ataque \texttt{macof}: $\approx$2.5~s de inundación generaron cientos
+de ventanas consecutivas con 50 direcciones MAC distintas por ventana.
+Las clases ARP (\texttt{arp\_spoof}, \texttt{arp\_recon}) concentran
+pocas ventanas pero exhiben separación clara en \texttt{arp\_rate} frente
+a \texttt{normal}. La perspectiva \texttt{victima2} aportó 75 ventanas
+\texttt{normal} adicionales frente a 41 de \texttt{victima1}, lo que
+refuerza la línea base de entrenamiento no supervisado.
+
+\subsection{Protocolo de entrenamiento y evaluación}
+El protocolo experimental distingue explícitamente entre uso de etiquetas
+en entrenamiento y en evaluación:
+\begin{itemize}
+\item \textbf{Entrenamiento:} solo ventanas con etiqueta \texttt{normal}.
+\item \textbf{Validación (umbral $\theta$):} subconjunto de ventanas
+\texttt{normal} no vistas en entrenamiento (percentil~95 del error MSE).
+\item \textbf{Evaluación:} conjunto completo con las cinco clases, para
+medir detección de anomalías por familia de ataque.
+\end{itemize}
+Las etiquetas temporales se derivaron del instante central de cada
+ventana y de los intervalos de la sesión GNS3; no intervienen en el
+ajuste del \textit{autoencoder}. El entorno de implementación emplea
+Python~3.12, Scapy, pandas y \textit{uv} para reproducibilidad del
+extractor de características.
+
+% ---------------------------------------------------------------
+%  V. RESULTADOS Y DISCUSIÓN
+% ---------------------------------------------------------------
+\section{Resultados y Discusión}
+Los resultados del \textit{autoencoder}, la calibración del umbral
+estadístico y el agente de mitigación en modos preventivo y reactivo se
+reportarán tras completar la fase de entrenamiento sobre
+\texttt{features\_l2\_labeled.csv}.
+
+% ---------------------------------------------------------------
+%  VI. CONCLUSIONES
+% ---------------------------------------------------------------
+\section{Conclusiones}
+Este trabajo consolidó la adquisición y el etiquetado de un
+\textit{dataset} anclado en tramas IEEE~802.3, con cuatro familias de
+ataque de capa~2 en un laboratorio GNS3 y un \textit{pipeline} reproducible
+de extracción de \textit{features} L2. La evaluación cuantitativa del
+modelo no supervisado y del motor de alertas constituye el siguiente
+paso inmediato del proyecto.
+
+% ---------------------------------------------------------------
+%  REFERENCES
+% ---------------------------------------------------------------
+\begin{thebibliography}{00}
+
+% --- Referencias de la Introducción ---
+
+\bibitem{tufan2021}
+E.~Tufan, C.~Tezcan, y C.~Acartürk,
+``Anomaly-Based Intrusion Detection by Machine Learning: A Case Study
+on Probing Attacks to an Institutional Network,''
+\textit{IEEE Access},
+vol.~9, pp.~50078--50092, 2021.
+
+\bibitem{gamage2020}
+S.~Gamage and J.~Samarabandu,
+``Deep learning methods in network intrusion detection: A survey and an
+objective comparison,''
+\textit{Journal of Network and Computer Applications},
+vol.~169, p.~102767, 2020.
+
+\bibitem{sarhan2022}
+M.~Sarhan, S.~Layeghy, y M.~Portmann,
+``Towards a Standard Feature Set for Network Intrusion Detection System
+Datasets,''
+\textit{Mobile Networks and Applications},
+vol.~27, pp.~357--370, 2022.
+
+\bibitem{he2023}
+K.~He, D.~D. Kim, and M.~R. Asghar,
+``Adversarial Machine Learning for Network Intrusion Detection Systems:
+A Comprehensive Survey,''
+\textit{IEEE Communications Surveys \& Tutorials},
+vol.~25, no.~1, pp.~538--566, First Quarter 2023.
+
+\bibitem{morsy2022}
+S.~M. Morsy and D.~Nashat,
+``D-ARP: An Efficient Scheme to Detect and Prevent ARP Spoofing,''
+\textit{IEEE Access},
+vol.~10, pp.~49142--49153, 2022.
+
+\bibitem{sakhawat2019}
+D.~Sakhawat, A.~N. Khan, M.~Aslam, and A.~T. Chronopoulos,
+``Agent-based ARP cache poisoning detection in switched LAN
+environments,''
+\textit{IET Networks},
+vol.~8, no.~1, pp.~67--73, 2019.
+
+\bibitem{tariq2025}
+S.~Tariq, M.~B. Chhetri, S.~Nepal, and C.~Paris,
+``Alert Fatigue in Security Operations Centres: Research Challenges
+and Opportunities,''
+\textit{ACM Computing Surveys},
+vol.~57, no.~9, 2025.
+
+\bibitem{injadat2021}
+M.~Injadat, A.~Moubayed, A.~B. Nassif, and A.~Shami,
+``Multi-Stage Optimized Machine Learning Framework for Network
+Intrusion Detection,''
+\textit{IEEE Transactions on Network and Service Management},
+vol.~18, no.~2, pp.~1803--1816, Jun.~2021.
+
+\bibitem{yang2022}
+Z.~Yang, X.~Liu, T.~Li, D.~Wu, J.~Wang, Y.~Zhao, and H.~Han,
+``A systematic literature review of methods and datasets for
+anomaly-based network intrusion detection,''
+\textit{Computers \& Security},
+vol.~116, p.~102675, 2022.
+
+
+% --- Referencias nuevas de Trabajos Relacionados ---
+ 
+\bibitem{griffinyang2022}
+L.~Griffin, Z.~Yang, Y.~Song, S.~Gao, A.~Hu, and B.~Xiao,
+``Griffin: Real-Time Network Intrusion Detection System via
+Ensemble of Autoencoder in SDN,''
+\textit{IEEE Transactions on Network and Service Management},
+vol.~19, no.~3, pp.~2269--2282, Sep.~2022.
+ 
+\bibitem{antunes2022}
+M.~Antunes, L.~Oliveira, A.~Seguro, J.~Veríssimo, R.~Salgado,
+and T.~Murteira,
+``Benchmarking Deep Learning Methods for Behaviour-Based Network
+Intrusion Detection,''
+\textit{Informatics},
+vol.~9, no.~1, p.~29, 2022.
+ 
+\bibitem{sun2021ojcoms}
+Y.~Sun, H.~Esaki, and H.~Ochiai,
+``Adaptive Intrusion Detection in the Networking of Large-Scale LANs
+With Segmented Federated Learning,''
+\textit{IEEE Open Journal of the Communications Society},
+vol.~2, pp.~102--112, 2021.
+ 
+\bibitem{prasad2022}
+A.~Prasad and S.~Chandra,
+``Defending ARP Spoofing-based MitM Attack using Machine Learning
+and Device Profiling,''
+in \textit{2022 International Conference on Computing, Communication,
+and Intelligent Systems (ICCCIS)}, 2022, pp.~978--983.
+ 
+\bibitem{sun2022ccnc}
+Y.~Sun, H.~Ochiai, and H.~Esaki,
+``Suspicious ARP Activity Detection and Clustering Based on Autoencoder
+Neural Networks,''
+in \textit{IEEE Consumer Communications \& Networking Conference
+(CCNC)}, 2022.
+ 
+\bibitem{aminanto2020}
+M.~E. Aminanto, T.~Ban, R.~Isawa, T.~Takahashi, and D.~Inoue,
+``Threat Alert Prioritization Using Isolation Forest and Stacked Auto
+Encoder With Day-Forward-Chaining Analysis,''
+\textit{IEEE Access},
+vol.~8, pp.~217977--217986, 2020.
+ 
+\bibitem{jalalvand2024}
+F.~Jalalvand, M.~B. Chhetri, S.~Nepal, and C.~Paris,
+``Alert Prioritisation in Security Operations Centres: A Systematic
+Survey on Criteria and Methods,''
+\textit{ACM Computing Surveys},
+vol.~57, no.~2, pp.~1--36, 2024.
+ 
+\bibitem{carrera2022}
+F.~Carrera et al.,
+``Combining Unsupervised Approaches for Near Real-Time Network Traffic
+Anomaly Detection,''
+\textit{Applied Sciences},
+vol.~12, no.~3, p.~1759, 2022.
+
+% --- Nuevas referencias de Metodología ---
+
+\bibitem{li2020}
+X.~Li, W.~Chen, Q.~Zhang, and L.~Wu,
+``Building Auto-Encoder Intrusion Detection System Based on Random
+Forest Feature Selection,''
+\textit{Computers \& Security},
+vol.~95, p.~101851, 2020.
+
+\bibitem{song2021}
+Y.~Song, C.~Hyun, and Y.~Cheong,
+``Self-Supervised Anomaly Detection with Neural Transformation
+Learning for Log-Based Intrusion Detection,''
+\textit{IEEE Access},
+vol.~9, pp.~53127--53143, 2021.
+
+\bibitem{maleki2021}
+N.~Maleki, M.~Zeinali, and S.~T.~Hasson,
+``A Kind of Threshold-Based Anomaly Detection in Autoencoder,''
+in \textit{2021 5th International Conference on Pattern Recognition
+and Image Analysis (IPRIA)}, 2021, pp.~1--6.
+
+\bibitem{zavrak2020}
+S.~Zavrak and M.~{\.I}skefiyeli,
+``Anomaly-Based Intrusion Detection From Network Flow Features
+Using Variational Autoencoder,''
+\textit{IEEE Access},
+vol.~8, pp.~108346--108358, 2020.
+
+\bibitem{zhang2023}
+H.~Zhang, X.~Li, T.~Liu, and J.~Gu,
+``Threshold Optimization in Autoencoder-Based Anomaly Detection
+for Network Traffic,''
+\textit{IEEE Transactions on Network and Service Management},
+vol.~20, no.~2, pp.~1753--1765, Jun.~2023.
+
+\end{thebibliography}
+
+\end{document}

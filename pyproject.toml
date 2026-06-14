@@ -1,0 +1,12 @@
+[project]
+name = "deteccion-ataques-lan-ia"
+version = "0.1.0"
+description = "Detección de anomalías L2 en LAN con autoencoder y agente de mitigación"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.4.6",
+    "pandas>=3.0.3",
+    "scapy>=2.7.0",
+    "scipy>=1.17.1",
+]
