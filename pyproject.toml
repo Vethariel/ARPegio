@@ -5,8 +5,11 @@ description = "Detección de anomalías L2 en LAN con autoencoder y agente de mi
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "matplotlib>=3.11.0",
     "numpy>=2.4.6",
     "pandas>=3.0.3",
     "scapy>=2.7.0",
+    "scikit-learn>=1.9.0",
     "scipy>=1.17.1",
+    "torch>=2.12.0",
 ]

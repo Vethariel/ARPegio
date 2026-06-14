@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# uv cache local (evita cuota en /tmp)
+.uv-cache
+
 # LaTeX build artifacts
 docs/*.aux
 docs/*.log
@@ -18,3 +21,6 @@ docs/*.synctex.gz
 # Large generated outputs (optional — descomentar si no quieres versionar PCAPs)
 # data/raw/pcap/*.pcapng
 # data/processed/*.csv
+
+# Model artifacts (regenerables)
+# models/

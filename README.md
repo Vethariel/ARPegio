@@ -17,7 +17,10 @@ Deteccion_Ataques_LAN_IA/
 │   ├── articulo.tex            # Paper IEEE
 │   └── articulo.pdf
 ├── scripts/
-│   └── extract_features.py     # Extracción L2 con Scapy
+│   ├── extract_features.py     # Extracción L2 con Scapy
+│   └── train_autoencoder.py    # Entrenamiento AE + umbral
+├── models/                     # autoencoder.pt, scaler.pkl, threshold.npy
+├── results/                    # Figuras (training_loss.png)
 ├── pyproject.toml
 └── uv.lock
 ```
@@ -35,6 +38,9 @@ uv sync
 
 # Extraer features L2 desde PCAPs y generar CSV etiquetado
 uv run python scripts/extract_features.py
+
+# Entrenar autoencoder (GPU CUDA si está disponible)
+uv run python scripts/train_autoencoder.py
 ```
 
 ## Datos
@@ -56,6 +62,6 @@ uv run python scripts/extract_features.py
 
 ## Próximos pasos
 
-- [ ] Entrenar autoencoder (solo tráfico normal)
-- [ ] Calibrar umbral estadístico (percentil 95)
+- [x] Entrenar autoencoder (solo tráfico normal)
+- [x] Calibrar umbral estadístico (percentil 95)
 - [ ] Agente IA: modos preventivo y reactivo
