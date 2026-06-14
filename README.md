@@ -18,9 +18,11 @@ Deteccion_Ataques_LAN_IA/
 │   └── articulo.pdf
 ├── scripts/
 │   ├── extract_features.py     # Extracción L2 con Scapy
-│   └── train_autoencoder.py    # Entrenamiento AE + umbral
+│   ├── train_autoencoder.py    # Entrenamiento AE + umbral
+│   ├── prioritizer.py          # Motor de priorización (severidad/frecuencia/impacto)
+│   └── prioritize_alerts.py    # Genera alertas ordenadas en results/
 ├── models/                     # autoencoder.pt, scaler.pkl, threshold.npy
-├── results/                    # Figuras (training_loss.png)
+├── results/                    # metrics.json, training_loss.png, alerts_prioritized.csv
 ├── pyproject.toml
 └── uv.lock
 ```
@@ -41,7 +43,17 @@ uv run python scripts/extract_features.py
 
 # Entrenar autoencoder (GPU CUDA si está disponible)
 uv run python scripts/train_autoencoder.py
+
+# Priorizar alertas sobre victima2
+uv run python scripts/prioritize_alerts.py
 ```
+
+## Reproducibilidad
+
+El paper describe el motor de priorización de forma genérica; en el
+repositorio la lógica reside en `scripts/prioritizer.py` y el punto de
+entrada para generar alertas ordenadas es `scripts/prioritize_alerts.py`
+(no existe un archivo `prioritization_engine.py`).
 
 ## Datos
 
@@ -64,4 +76,5 @@ uv run python scripts/train_autoencoder.py
 
 - [x] Entrenar autoencoder (solo tráfico normal)
 - [x] Calibrar umbral estadístico (percentil 95)
+- [x] Motor de priorización de alertas
 - [ ] Agente IA: modos preventivo y reactivo

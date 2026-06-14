@@ -1,0 +1,29 @@
+{
+  "total_windows": 144,
+  "alerts": 71,
+  "threshold": 0.11372725665569305,
+  "top_alert": {
+    "source": "victima2",
+    "t_start": 1781423583.374615,
+    "t_end": 1781423583.378711,
+    "arp_rate": 0.0,
+    "arp_req_reply_ratio": 0.0,
+    "mac_entropy": 3.9120230054281455,
+    "unique_src_macs": 50,
+    "unique_dst_macs": 50,
+    "frame_len_mean": 54.0,
+    "frame_len_std": 0.0,
+    "frame_len_min": 54,
+    "frame_len_max": 54,
+    "broadcast_ratio": 0.0,
+    "total_packets": 50,
+    "label": "mac_flood",
+    "reconstruction_error": 1.203987956047058,
+    "is_anomaly": true,
+    "inferred_threat": "mac_flood",
+    "severity": 1.0,
+    "impact": 1.0,
+    "frequency": 1.0,
+    "priority_score": 1.0
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "device": "cpu",
+  "epochs": 100,
+  "threshold_percentile": 95,
+  "threshold": 0.11372725665569305,
+  "train_size": 33,
+  "val_size": 8,
+  "test_size": 144,
+  "auc_roc": 0.9978743961352656,
+  "final_loss": 0.039003612784047924,
+  "per_class": {
+    "arp_recon": {
+      "detected": 3,
+      "total": 3,
+      "rate_pct": 100.0
+    },
+    "arp_spoof": {
+      "detected": 3,
+      "total": 3,
+      "rate_pct": 100.0
+    },
+    "mac_flood": {
+      "detected": 62,
+      "total": 62,
+      "rate_pct": 100.0
+    },
+    "normal": {
+      "detected": 3,
+      "total": 75,
+      "rate_pct": 4.0
+    },
+    "port_scan": {
+      "detected": 0,
+      "total": 1,
+      "rate_pct": 0.0
+    }
+  },
+  "classification_report": "              precision    recall  f1-score   support\n\n      ataque       0.96      0.99      0.97        69\n      normal       0.99      0.96      0.97        75\n\n    accuracy                           0.97       144\n   macro avg       0.97      0.97      0.97       144\nweighted avg       0.97      0.97      0.97       144\n"
+}

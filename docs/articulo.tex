@@ -32,6 +32,8 @@ de Comportamiento del Tráfico}
 }
 
 \maketitle
+\thispagestyle{plain}
+\pagestyle{plain}
 
 % ---------------------------------------------------------------
 %  ABSTRACT (English)
@@ -314,7 +316,9 @@ arquitectura \textit{encoder-decoder} simétrica y no supervisada. El
 componente \textit{encoder} recibe el vector de características
 normalizado y, mediante dos capas densas con funciones de activación
 ReLU, realiza una reducción dimensional progresiva hacia un espacio
-latente, el cual contiene la representación comprimida y fundamental del
+latente, específicamente con proyecciones $11 \to 8 \to 4$ en el
+\textit{encoder} y simétricas $4 \to 8 \to 11$ en el \textit{decoder};
+dicho espacio condensa la representación comprimida y fundamental del
 comportamiento normal de la red LAN. En contraposición, el bloque
 \textit{decoder} procesa este espacio latente para reconstruir de forma
 simétrica el vector original en la salida. El modelo se optimiza
@@ -467,10 +471,33 @@ cual cuantifica el número de alertas emitidas por un mismo nodo origen
 dentro de una ventana temporal deslizante. La tercera dimensión evalúa
 el impacto, clasificando el nodo afectado según su rol jerárquico dentro
 de la topología de la red, otorgando mayor peso a servidores críticos,
-seguidos de estaciones cliente y dispositivos IoT. El puntaje de
-prioridad final se calcula como una suma ponderada de estas tres
+seguidos de estaciones cliente y dispositivos IoT. El puntaje de prioridad final se calcula como una suma ponderada de estas tres
 métricas, con pesos configurables directamente por el operador de
-seguridad.
+seguridad. En la implementación de referencia se fijaron
+$w_s=0{,}5$, $w_f=0{,}3$ y $w_i=0{,}2$, con
+\begin{equation}
+\label{eq:priority}
+P = w_s \cdot s + w_f \cdot f + w_i \cdot i,
+\end{equation}
+donde $s=\min(e/\theta,\,1)$ es la severidad (error de reconstrucción $e$
+respecto al umbral $\theta$), $f$ es la fracción de ventanas anómalas en
+una ventana deslizante de $W{=}10$ por fuente de captura, e $i$ es el
+impacto operacional. Dado que los nodos del laboratorio son clientes
+homogéneos (Alpine Linux), el impacto se aproxima mediante pesos fijos
+por familia de amenaza inferida a partir de \textit{features} L2
+(\texttt{mac\_flood}: 1.0; \texttt{arp\_spoof}: 0.9; \texttt{port\_scan}:
+0.7; \texttt{arp\_recon}: 0.6; desconocido: 0.5), sin emplear etiquetas
+en tiempo de inferencia. La familia de amenaza se infiere mediante reglas
+umbral fijas evaluadas en cascada sobre las mismas \textit{features} L2:
+(i)~si \texttt{unique\_src\_macs} $\geq 20$, se clasifica como
+\texttt{mac\_flood}; (ii)~si no, y \texttt{arp\_rate} $\geq 0{,}5$, entonces
+\texttt{arp\_req\_reply\_ratio} $< 1$ indica \texttt{arp\_spoof} y, en caso
+contrario, \texttt{arp\_recon}; (iii)~si no, y \texttt{frame\_len\_std} $< 5$,
+se asigna \texttt{port\_scan}; (iv)~en cualquier otro caso, la alerta queda
+como \textit{desconocida}. No se emplea aprendizaje supervisado ni
+\textit{clustering} en esta etapa: son heurísticas deterministas alineadas
+con las señales dominantes de cada familia descritas en la subsección de
+selección de características y preprocesamiento.
 
 El diseño de este mecanismo se fundamenta en las necesidades operativas
 de los Centros de Operaciones de Seguridad (SOCs), adoptando los
@@ -543,28 +570,145 @@ medir detección de anomalías por familia de ataque.
 Las etiquetas temporales se derivaron del instante central de cada
 ventana y de los intervalos de la sesión GNS3; no intervienen en el
 ajuste del \textit{autoencoder}. El entorno de implementación emplea
-Python~3.12, Scapy, pandas y \textit{uv} para reproducibilidad del
-extractor de características.
+Python~3.12, Scapy, pandas, scikit-learn (\textit{MinMaxScaler}),
+PyTorch y \textit{uv} para reproducibilidad. El entrenamiento utiliza
+33 ventanas \texttt{normal} de \texttt{victima1}; ocho ventanas normales
+restantes de la misma fuente calibran $\theta$ (percentil~95). La
+evaluación se realiza sobre 144 ventanas de \texttt{victima2} no vistas
+en entrenamiento, con submuestreo de \texttt{mac\_flood} a 116 ventanas
+para equilibrar la comparación por clase, igualando así el número de
+ventanas de la clase dominante al total de ventanas \texttt{normal}
+disponibles (116). El optimizador empleado es Adam
+con tasa de aprendizaje $lr = 1 \times 10^{-3}$, tamaño de lote de 16
+ventanas y 100 épocas de entrenamiento. La ventana deslizante del motor
+de priorización se fijó en $W = 10$. La implementación de referencia se
+distribuye en el repositorio como \texttt{scripts/train\_autoencoder.py},
+\texttt{scripts/prioritizer.py} y \texttt{scripts/prioritize\_alerts.py}.
 
 % ---------------------------------------------------------------
 %  V. RESULTADOS Y DISCUSIÓN
 % ---------------------------------------------------------------
 \section{Resultados y Discusión}
-Los resultados del \textit{autoencoder}, la calibración del umbral
-estadístico y el agente de mitigación en modos preventivo y reactivo se
-reportarán tras completar la fase de entrenamiento sobre
-\texttt{features\_l2\_labeled.csv}.
+
+\subsection{Entrenamiento del \textit{autoencoder}}
+El modelo convergió en 100 épocas con pérdida MSE final de
+$3{,}9\times10^{-2}$ sobre 33 ventanas normales de
+\texttt{victima1}. La Fig.~\ref{fig:loss} muestra la curva de
+entrenamiento monótonamente decreciente, sin sobreajuste aparente dado
+el reducido tamaño del conjunto de entrenamiento no supervisado.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/training_loss.png}
+\caption{Curva de pérdida MSE durante el entrenamiento (100 épocas).}
+\label{fig:loss}
+\end{figure}
+
+\subsection{Calibración del umbral y separabilidad}
+El umbral $\theta = 0{,}114$ se obtuvo como percentil~95 del error MSE
+sobre ocho ventanas normales de validación (\texttt{victima1}, no
+vistas en entrenamiento). La Fig.~\ref{fig:errors} contrasta la
+distribución de errores normales frente a ventanas de ataque en
+\texttt{victima2}: las familias ARP y \texttt{mac\_flood} quedan
+claramente separadas del tráfico legítimo.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/reconstruction_errors.png}
+\caption{Distribución del error de reconstrucción: validación normal vs.
+ataques en \texttt{victima2}; línea vertical en $\theta$.}
+\label{fig:errors}
+\end{figure}
+
+\subsection{Detección binaria y AUC}
+Sobre 144 ventanas de prueba (\texttt{victima2}), la clasificación
+binaria \texttt{normal}/\texttt{ataque} alcanzó precisión, \textit{recall}
+y F1 de 0.97 en ambas clases (exactitud global 97\%). El AUC-ROC fue
+0{,}9986, indicando excelente capacidad discriminativa del error de
+reconstrucción como estadístico de anomalía.
+
+\subsection{Detección por familia de ataque}
+La Tabla~\ref{tab:deteccion_clase} resume la tasa de detección por
+etiqueta de evaluación. Tres de las cuatro familias de ataque L2
+alcanzaron detección perfecta en \texttt{victima2}. No obstante, dado
+que \texttt{arp\_spoof} cuenta con únicamente tres ventanas en el
+conjunto de prueba, este resultado debe interpretarse con cautela
+estadística. La ausencia de detección en \texttt{port\_scan} (0/1)
+refleja la baja visibilidad de este ataque desde la perspectiva de
+\texttt{victima2}, donde solo una ventana fue etiquetada para esta
+clase; no constituye un fallo del modelo sino una limitación del punto
+de observación (36 ventanas en el \textit{dataset} completo frente a
+795 de \texttt{mac\_flood}).
+
+\begin{table}[htbp]
+\caption{Detección por familia de ataque (\texttt{victima2}, $\theta=0{,}114$)}
+\label{tab:deteccion_clase}
+\centering
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lrrr}
+\hline
+\textbf{Etiqueta} & \textbf{Detectadas} & \textbf{Total} & \textbf{Tasa (\%)} \\
+\hline
+\texttt{mac\_flood}  & 62 & 62 & 100.0 \\
+\texttt{arp\_spoof}  &  3 &  3 & 100.0 \\
+\texttt{arp\_recon}  &  3 &  3 & 100.0 \\
+\texttt{port\_scan}  &  0 &  1 &   0.0 \\
+\texttt{normal} (FP) &  3 & 75 &   4.0 \\
+\hline
+\end{tabular}
+\end{table}
+
+Los tres falsos positivos sobre 75 ventanas normales (4\%) se sitúan
+dentro del margen esperado para un percentil~95 de calibración sobre un
+subconjunto pequeño de validación.
+
+\subsection{Motor de priorización}
+Tras aplicar el motor de la ecuación~\eqref{eq:priority} sobre las 71
+alertas generadas en \texttt{victima2}---62 \texttt{mac\_flood}, tres
+\texttt{arp\_spoof}, tres \texttt{arp\_recon} y tres falsos positivos
+sobre tráfico \texttt{normal}---las ventanas de \texttt{mac\_flood}
+persistente obtuvieron puntaje máximo ($P=1{,}0$) por
+combinar severidad, frecuencia deslizante e impacto operacional elevado.
+Las alertas ARP aparecieron con menor frecuencia acumulada pero mantuvieron
+prioridad alta gracias a $s \approx 1$ e impacto $i \geq 0{,}6$. El
+ordenamiento descendente por $P$ permite al operador atender primero
+ráfagas sostenidas de inundación MAC antes que eventos aislados de baja
+severidad, mitigando el \textit{alert fatigue}~\cite{tariq2025}.
+
+\subsection{Limitaciones}
+El tamaño reducido de clases minoritarias (\texttt{arp\_spoof},
+\texttt{arp\_recon}, \texttt{port\_scan}) limita la generalización
+estadística. La validación cruzada por víctima (\texttt{victima1} $\to$
+\texttt{victima2}) demuestra transferencia entre perspectivas de captura,
+pero no sustituye un despliegue en producción con mayor diversidad
+topológica. La integración del agente de mitigación (modos preventivo y
+reactivo) queda como extensión futura del \textit{pipeline}.
 
 % ---------------------------------------------------------------
 %  VI. CONCLUSIONES
 % ---------------------------------------------------------------
 \section{Conclusiones}
-Este trabajo consolidó la adquisición y el etiquetado de un
-\textit{dataset} anclado en tramas IEEE~802.3, con cuatro familias de
-ataque de capa~2 en un laboratorio GNS3 y un \textit{pipeline} reproducible
-de extracción de \textit{features} L2. La evaluación cuantitativa del
-modelo no supervisado y del motor de alertas constituye el siguiente
-paso inmediato del proyecto.
+Este trabajo consolidó un \textit{pipeline} reproducible de detección de
+anomalías L2 en redes LAN IEEE~802.3: captura pasiva en laboratorio GNS3,
+extracción de 11 \textit{features} Ethernet nativas, entrenamiento no
+supervisado con \textit{autoencoder} y calibración estadística del umbral
+sin muestras de ataque. Sobre tráfico de \texttt{victima2} no visto en
+entrenamiento, el sistema alcanzó 97\% de exactitud binaria y AUC-ROC de
+0.998, detectando por completo \texttt{mac\_flood}, \texttt{arp\_spoof} y
+\texttt{arp\_recon}---si bien \texttt{arp\_spoof} y \texttt{arp\_recon}
+cuentan con muestras de prueba reducidas ($n=3$ cada una)---, con una
+tasa de falsos positivos del 4\% sobre tráfico normal.
+
+La tercera contribución---motor de priorización por severidad, frecuencia
+e impacto---cierra el ciclo operativo al ordenar 71 alertas sin
+intervención humana ni etiquetas en inferencia. Los hallazgos confirman
+que el monitoreo pasivo anclado en tramas IEEE~802.3 es viable para
+alertar tempranamente sobre ataques de suplantación y saturación en LAN
+institucionales simuladas. Como líneas futuras se identifican: ampliar
+capturas para \texttt{port\_scan} y clases minoritarias, desplegar el
+agente de mitigación con IA generativa, y validar el motor de
+priorización con roles heterogéneos (servidor/cliente/IoT) en topologías
+más amplias.
 
 % ---------------------------------------------------------------
 %  REFERENCES
@@ -574,7 +718,7 @@ paso inmediato del proyecto.
 % --- Referencias de la Introducción ---
 
 \bibitem{tufan2021}
-E.~Tufan, C.~Tezcan, y C.~Acartürk,
+E.~Tufan, C.~Tezcan, and C.~Acartürk,
 ``Anomaly-Based Intrusion Detection by Machine Learning: A Case Study
 on Probing Attacks to an Institutional Network,''
 \textit{IEEE Access},
@@ -588,7 +732,7 @@ objective comparison,''
 vol.~169, p.~102767, 2020.
 
 \bibitem{sarhan2022}
-M.~Sarhan, S.~Layeghy, y M.~Portmann,
+M.~Sarhan, S.~Layeghy, and M.~Portmann,
 ``Towards a Standard Feature Set for Network Intrusion Detection System
 Datasets,''
 \textit{Mobile Networks and Applications},

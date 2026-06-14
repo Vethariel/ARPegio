@@ -1,3 +1,4 @@
+import json
 import pickle
 from pathlib import Path
 
@@ -7,7 +8,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from sklearn.metrics import classification_report, roc_auc_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader, TensorDataset
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +35,8 @@ EPOCHS = 100
 BATCH_SIZE = 16
 LR = 1e-3
 THRESHOLD_PERCENTILE = 95
+VAL_FRACTION = 0.2
+RANDOM_STATE = 42
 
 
 class Autoencoder(nn.Module):
@@ -61,6 +64,20 @@ def reconstruction_errors(model, x_tensor):
         return ((recon - x_tensor) ** 2).mean(dim=1).cpu().numpy()
 
 
+def per_class_detection(test_df, test_errs, threshold):
+    results = {}
+    for label in sorted(test_df["label"].unique()):
+        mask = test_df["label"].values == label
+        detected = int((test_errs[mask] > threshold).sum())
+        total = int(mask.sum())
+        results[label] = {
+            "detected": detected,
+            "total": total,
+            "rate_pct": round(100 * detected / total, 1) if total else 0.0,
+        }
+    return results
+
+
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Dispositivo: {device}")
@@ -70,7 +87,7 @@ def main():
     df = pd.read_csv(DATA_PATH)
 
     mac_flood = df[df["label"] == "mac_flood"].sample(
-        MAC_FLOOD_SAMPLE, random_state=42
+        MAC_FLOOD_SAMPLE, random_state=RANDOM_STATE
     )
     df_balanced = pd.concat(
         [df[df["label"] != "mac_flood"], mac_flood], ignore_index=True
@@ -79,16 +96,21 @@ def main():
     print("\nDistribución balanceada:")
     print(df_balanced["label"].value_counts())
 
-    train = df_balanced[
+    normal_v1 = df_balanced[
         (df_balanced["source"] == "victima1") & (df_balanced["label"] == "normal")
-    ]
-    test = df_balanced[df_balanced["source"] == "victima2"]
+    ].sample(frac=1, random_state=RANDOM_STATE)
+    n_val = max(1, int(len(normal_v1) * VAL_FRACTION))
+    val = normal_v1.iloc[:n_val]
+    train = normal_v1.iloc[n_val:]
+    test = df_balanced[df_balanced["source"] == "victima2"].reset_index(drop=True)
 
     print(f"\nTrain (normal victima1): {len(train)}")
+    print(f"Val   (normal victima1): {len(val)}")
     print(f"Test  (victima2):        {len(test)}")
 
-    scaler = StandardScaler()
+    scaler = MinMaxScaler()
     x_train = scaler.fit_transform(train[FEATURES])
+    x_val = scaler.transform(val[FEATURES])
     x_test = scaler.transform(test[FEATURES])
     y_test = test["label"].values
 
@@ -124,9 +146,10 @@ def main():
             print(f"Epoch {epoch + 1:3d}/{EPOCHS} — loss: {avg:.6f}")
 
     model.eval()
-    train_errs = reconstruction_errors(model, x_train_t)
-    threshold = float(np.percentile(train_errs, THRESHOLD_PERCENTILE))
-    print(f"\nUmbral (percentil {THRESHOLD_PERCENTILE}): {threshold:.6f}")
+    x_val_t = torch.FloatTensor(x_val).to(device)
+    val_errs = reconstruction_errors(model, x_val_t)
+    threshold = float(np.percentile(val_errs, THRESHOLD_PERCENTILE))
+    print(f"\nUmbral (percentil {THRESHOLD_PERCENTILE} sobre val normal): {threshold:.6f}")
 
     x_test_t = torch.FloatTensor(x_test).to(device)
     test_errs = reconstruction_errors(model, x_test_t)
@@ -135,24 +158,39 @@ def main():
     y_true = np.where(y_test == "normal", "normal", "ataque")
 
     print("\nReporte de clasificación (binario normal vs ataque):")
-    print(classification_report(y_true, y_pred, zero_division=0))
+    report = classification_report(y_true, y_pred, zero_division=0)
+    print(report)
 
     y_true_bin = (y_true == "ataque").astype(int)
-    auc = roc_auc_score(y_true_bin, test_errs)
+    auc = float(roc_auc_score(y_true_bin, test_errs))
     print(f"AUC-ROC: {auc:.4f}")
 
+    class_results = per_class_detection(test, test_errs, threshold)
     print("\nDetección por clase (victima2):")
-    for label in sorted(test["label"].unique()):
-        mask = y_test == label
-        detected = (test_errs[mask] > threshold).sum()
-        total = mask.sum()
-        print(f"  {label:12s}: {detected}/{total} detectadas ({100*detected/total:.1f}%)")
+    for label, stats in class_results.items():
+        print(
+            f"  {label:12s}: {stats['detected']}/{stats['total']} "
+            f"detectadas ({stats['rate_pct']}%)"
+        )
 
     torch.save(model.state_dict(), MODEL_DIR / "autoencoder.pt")
     np.save(MODEL_DIR / "threshold.npy", threshold)
-    print(f"\nModelo:   {MODEL_DIR / 'autoencoder.pt'}")
-    print(f"Umbral:   {MODEL_DIR / 'threshold.npy'}")
-    print(f"Scaler:   {MODEL_DIR / 'scaler.pkl'}")
+
+    metrics = {
+        "device": str(device),
+        "epochs": EPOCHS,
+        "threshold_percentile": THRESHOLD_PERCENTILE,
+        "threshold": threshold,
+        "train_size": len(train),
+        "val_size": len(val),
+        "test_size": len(test),
+        "auc_roc": auc,
+        "final_loss": losses[-1],
+        "per_class": class_results,
+        "classification_report": report,
+    }
+    with open(RESULTS_DIR / "metrics.json", "w", encoding="utf-8") as f:
+        json.dump(metrics, f, indent=2)
 
     plt.figure(figsize=(8, 4))
     plt.plot(losses)
@@ -162,7 +200,22 @@ def main():
     plt.tight_layout()
     loss_path = RESULTS_DIR / "training_loss.png"
     plt.savefig(loss_path)
+
+    plt.figure(figsize=(8, 4))
+    plt.hist(val_errs, bins=30, alpha=0.7, label="normal (val)")
+    plt.hist(test_errs[y_test != "normal"], bins=30, alpha=0.7, label="ataque (test)")
+    plt.axvline(threshold, color="r", linestyle="--", label=f"θ p{THRESHOLD_PERCENTILE}")
+    plt.xlabel("Error de reconstrucción (MSE)")
+    plt.ylabel("Frecuencia")
+    plt.legend()
+    plt.tight_layout()
+    err_path = RESULTS_DIR / "reconstruction_errors.png"
+    plt.savefig(err_path)
+
+    print(f"\nModelo:   {MODEL_DIR / 'autoencoder.pt'}")
+    print(f"Métricas: {RESULTS_DIR / 'metrics.json'}")
     print(f"Curva:    {loss_path}")
+    print(f"Errores:  {err_path}")
 
 
 if __name__ == "__main__":
