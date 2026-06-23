@@ -8,6 +8,7 @@
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
+\usepackage{array}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{hyperref}
@@ -578,16 +579,18 @@ distribución resultante tras combinar ambas perspectivas de captura.
 \caption{Distribución de ventanas etiquetadas (959 en total)}
 \label{tab:distribucion_labels}
 \centering
-\renewcommand{\arraystretch}{1.15}
-\begin{tabular}{lrr}
+\footnotesize
+\renewcommand{\arraystretch}{1.1}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}l r >{\raggedright\arraybackslash}p{0.42\columnwidth}@{}}
 \hline
-\textbf{Clase de tráfico} & \textbf{Ventanas} & \textbf{Señal L2 dominante} \\
+\textbf{Clase} & \textbf{$n$} & \textbf{Señal L2 dominante} \\
 \hline
-Tráfico normal      & 116 & Baseline ICMP / tráfico legítimo \\
-ARP spoofing  &   6 & Alta tasa ARP, bajo ratio req./reply \\
-MAC flooding  & 795 & 50 MACs únicas, entropía MAC $\approx 3.91$ \\
-Escaneo de puertos  &  36 & Baja variabilidad de longitud de trama \\
-Reconocimiento ARP  &   6 & Tasa ARP $=1.0$, patrón de sondeo \\
+Tráfico normal & 116 & ICMP baseline \\
+ARP spoofing & 6 & ARP alto, bajo req./reply \\
+MAC flooding & 795 & 50 MACs únicas, entropía $\approx 3{,}91$ \\
+Escaneo de puertos & 36 & Longitud de trama uniforme \\
+Reconocimiento ARP & 6 & ARP rate $=1{,}0$, sondeo \\
 \hline
 \end{tabular}
 \end{table}
