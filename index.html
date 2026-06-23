@@ -96,6 +96,9 @@
     </div>
     <div class="hist-verdict" id="hist-verdict"></div>
     <div class="hist-confusion" id="hist-confusion"></div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end">
+      <button type="button" class="btn-ghost" style="font-size:11px;padding:6px 14px" onclick="askAgentFromMonitor()">Preguntar al agente sobre este histograma</button>
+    </div>
   </div>
 
   <!-- STRIP DE ÚLTIMAS ALERTAS -->
@@ -354,9 +357,10 @@
         <div id="detail-inference" style="font-size:11px;color:var(--muted);line-height:1.6"></div>
       </div>
 
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn-danger" style="flex:1;font-size:11px;padding:7px;opacity:0.45;cursor:not-allowed" id="btn-block-flow" disabled title="Mitigación no disponible en demo offline">Bloquear flujo</button>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn-danger" style="flex:1;min-width:120px;font-size:11px;padding:7px;opacity:0.45;cursor:not-allowed" id="btn-block-flow" disabled title="Mitigación no disponible en demo offline">Bloquear flujo</button>
         <button class="btn-ghost" style="font-size:11px;padding:7px 12px" id="btn-export-alert">Exportar JSON</button>
+        <button type="button" class="btn-primary" style="font-size:11px;padding:7px 12px" onclick="askAgentFromAlert()">Preguntar al agente</button>
       </div>
     </div>
   </div>
@@ -437,6 +441,7 @@
 
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto">
       <button class="btn-primary" onclick="runScenario()">Ejecutar escenario</button>
+      <button type="button" class="btn-ghost" onclick="askAgentFromLab()">Preguntar al agente</button>
       <button class="btn-ghost" onclick="resetLab()">Resetear</button>
     </div>
   </div>
@@ -486,14 +491,14 @@
           <div class="mode-radio"></div>
           Modo Preventivo
         </div>
-        <div class="mode-option-desc">Recomienda ajustes de θ antes de que ocurran falsos positivos. Ideal para calibración continua.</div>
+        <div class="mode-option-desc" id="mode-desc-preventivo">Recomienda ajustes de θ antes de que ocurran falsos positivos. Ideal para calibración continua.</div>
       </div>
       <div class="mode-option" onclick="setMode(this,'reactivo')">
         <div class="mode-option-label">
           <div class="mode-radio"></div>
           Modo Reactivo
         </div>
-        <div class="mode-option-desc">Genera planes de mitigación paso a paso tras detectar una anomalía activa.</div>
+        <div class="mode-option-desc" id="mode-desc-reactivo">Genera planes de mitigación paso a paso tras detectar una anomalía activa.</div>
       </div>
     </div>
   </div>
@@ -517,7 +522,25 @@
           <div style="font-weight:600;color:var(--text);font-size:11px;text-transform:uppercase;letter-spacing:0.10em">Informe Gemini</div>
           <button class="btn-primary" style="font-size:11px;padding:8px 14px" id="btn-agent-generate" onclick="runAgent()">Generar informe</button>
         </div>
+        <div id="agent-verdict-bar" class="agent-verdict-bar" hidden></div>
         <div id="agent-gemini-output" class="agent-gemini-body">Configura tu API key y pulsa «Generar informe». La clave solo se usa en este navegador.</div>
+        <div id="agent-structured-actions" class="agent-structured-actions" hidden></div>
+
+        <div id="agent-chat-panel" class="agent-chat-panel" hidden>
+          <div class="agent-chat-header">
+            <span>Chat de seguimiento</span>
+            <label class="agent-stream-toggle">
+              <input type="checkbox" id="agent-stream-toggle" checked>
+              Streaming
+            </label>
+          </div>
+          <div id="agent-chat-thread" class="agent-chat-thread"></div>
+          <div class="agent-chat-input-row">
+            <input type="text" class="input-field" id="agent-chat-input" placeholder="Ej: ¿Qué pasa si subo θ a p99?" onkeydown="if(event.key==='Enter')sendAgentChat()">
+            <button type="button" class="btn-primary" style="font-size:11px;padding:8px 14px" onclick="sendAgentChat()">Enviar</button>
+            <button type="button" class="btn-ghost" style="font-size:11px;padding:8px 12px" onclick="clearAgentChat()">Nueva conversación</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -653,6 +676,7 @@
 <script src="assets/js/data.js"></script>
 <script src="assets/js/render.js"></script>
 <script src="assets/js/inference.js"></script>
+<script src="assets/js/agent-tools.js"></script>
 <script src="assets/js/gemini-agent.js"></script>
 <script src="assets/js/arpegio.js"></script>
 </body>

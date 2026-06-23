@@ -303,6 +303,51 @@ const ArpegioData = (function () {
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0] || null;
   }
 
+  function computeConfusionAtThreshold(threshold) {
+    const windows = state.windowScores?.windows;
+    if (!windows?.length) return null;
+    let tp = 0;
+    let fp = 0;
+    let tn = 0;
+    let fn = 0;
+    windows.forEach((w) => {
+      const pred = w.reconstruction_error > threshold;
+      const actual = w.label !== "normal";
+      if (pred && actual) tp++;
+      else if (pred && !actual) fp++;
+      else if (!pred && !actual) tn++;
+      else fn++;
+    });
+    return { tp, fp, tn, fn, total: windows.length, threshold };
+  }
+
+  function labelAtTime(epoch) {
+    const intervals = state.labelConfig?.label_intervals;
+    if (!intervals?.length) return null;
+    const t = Number(epoch);
+    for (const [start, end, label] of intervals) {
+      if (t >= start && t < end) return label;
+    }
+    return intervals[intervals.length - 1][2];
+  }
+
+  function alertSummary(alert) {
+    if (!alert) return null;
+    return {
+      threat: alert.inferred_threat,
+      label: alert.label,
+      label_interval: labelAtTime(alert.t_start),
+      mse: alert.reconstruction_error,
+      priority: alert.priority_score,
+      source: alert.source,
+      t_start: alert.t_start,
+      features: FEATURES.reduce((acc, key) => {
+        acc[key] = alert[key];
+        return acc;
+      }, {}),
+    };
+  }
+
   return {
     FEATURES,
     load,
@@ -324,6 +369,9 @@ const ArpegioData = (function () {
     exportAlertsCSV,
     exportAlertJSON,
     dominantThreat,
+    computeConfusionAtThreshold,
+    labelAtTime,
+    alertSummary,
     getLabScenarios,
     getLabScenario,
     getThetaForPercentile,

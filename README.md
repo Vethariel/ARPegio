@@ -10,7 +10,7 @@ python -m http.server 8080
 # Abrir http://localhost:8080/
 ```
 
-La interfaz incluye seis vistas (Monitor, Red, Alertas, Laboratorio, Agente, Ajustes). Al cargar, la demo lee `results/metrics.json`, `results/alerts_prioritized.csv`, `results/window_scores.json` y `results/lab_scenarios.json` (generar con `prioritize_alerts.py`). En **Laboratorio**, el autoencoder se ejecuta en el navegador con ONNX Runtime Web. En **Agente**, puedes usar tu API key de [Google AI Studio](https://aistudio.google.com/app/apikey) (BYOK) para informes preventivos o reactivos con contexto del pipeline; la clave solo se envía desde tu navegador a la API de Gemini.
+La interfaz incluye seis vistas (Monitor, Red, Alertas, Laboratorio, Agente, Ajustes). Al cargar, la demo lee `results/metrics.json`, `results/alerts_prioritized.csv`, `results/window_scores.json` y `results/lab_scenarios.json` (generar con `prioritize_alerts.py`). En **Laboratorio**, el autoencoder se ejecuta en el navegador con ONNX Runtime Web. En **Agente**, informes estructurados con herramientas (`simulate_theta`, alertas, escenarios lab), chat de seguimiento con streaming opcional, y modos preventivo/reactivo diferenciados.
 
 ## Estructura del proyecto
 
@@ -25,6 +25,7 @@ Deteccion_Ataques_LAN_IA/
 │       ├── render.js           # render dinámico de vistas
 │       ├── inference.js        # inferencia ONNX en navegador
 │       ├── gemini-agent.js     # agente Gemini BYOK
+│       ├── agent-tools.js        # herramientas locales del agente
 │       └── arpegio.js
 ├── config/
 │   └── label_intervals.json    # Ventanas temporales de etiquetado por ataque

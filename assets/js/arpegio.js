@@ -74,6 +74,7 @@ document.querySelectorAll('.filter-chip').forEach(chip => {
    LABORATORIO — ventanas reales
 ───────────────────────────────────── */
 let currentScenario = null;
+let lastLabRun = null;
 
 function getActiveTheta() {
   const slider = document.getElementById("theta-slider");
@@ -239,10 +240,24 @@ async function runScenario() {
 
   terminal.innerHTML += lines.join("");
   terminal.scrollTop = terminal.scrollHeight;
+
+  lastLabRun = {
+    scenario_id: scenario.id,
+    label: scenario.label,
+    mse_navegador: score,
+    mse_pipeline: pipelineMse,
+    drift: usedFallback ? null : Math.abs(score - pipelineMse),
+    theta: theta,
+    theta_percentil: p,
+    detected,
+    used_onnx_fallback: usedFallback,
+  };
+
   if (runBtn) runBtn.disabled = false;
 }
 
 function resetLab() {
+  lastLabRun = null;
   document.getElementById("lab-bar").style.width = "0%";
   document.getElementById("lab-bar").style.background = "var(--danger)";
   document.getElementById("lab-score").textContent = "—";
@@ -271,6 +286,42 @@ function initLab(labScenarios) {
    AGENTE IA
 ───────────────────────────────────── */
 let agentMode = "preventivo";
+let agentIntentLabel = "";
+
+function setAgentMode(mode) {
+  agentMode = mode;
+  const el = document.querySelector(`.mode-option[onclick*="'${mode}'"]`);
+  if (el) {
+    document.querySelectorAll(".mode-option").forEach((m) => m.classList.remove("active"));
+    el.classList.add("active");
+  }
+  const prev = document.getElementById("mode-desc-preventivo");
+  const react = document.getElementById("mode-desc-reactivo");
+  if (prev) {
+    prev.style.color = mode === "preventivo" ? "var(--amber)" : "";
+    prev.style.fontWeight = mode === "preventivo" ? "600" : "";
+  }
+  if (react) {
+    react.style.color = mode === "reactivo" ? "var(--danger)" : "";
+    react.style.fontWeight = mode === "reactivo" ? "600" : "";
+  }
+  const title = document.querySelector(".agent-output-title");
+  if (title) {
+    const dot = title.querySelector(".agent-status-dot");
+    title.innerHTML = "";
+    if (dot) title.appendChild(dot);
+    const suffix = agentIntentLabel ? ` · ${agentIntentLabel}` : "";
+    title.appendChild(
+      document.createTextNode(` Informe del agente — Modo ${mode}${suffix}`)
+    );
+  }
+}
+
+function setMode(el, mode) {
+  agentIntentLabel = "";
+  ArpegioGemini.clearChat(false);
+  setAgentMode(mode);
+}
 
 function validateKey() {
   const key = document.getElementById("api-key-input")?.value?.trim() || "";
@@ -297,33 +348,39 @@ function clearKey() {
   if (out) {
     out.textContent = "Configura tu API key y pulsa «Generar informe». La clave solo se usa en este navegador.";
   }
+  const verdictBar = document.getElementById("agent-verdict-bar");
+  if (verdictBar) verdictBar.hidden = true;
+  const actionsEl = document.getElementById("agent-structured-actions");
+  if (actionsEl) {
+    actionsEl.hidden = true;
+    actionsEl.innerHTML = "";
+  }
+  agentIntentLabel = "";
+  ArpegioGemini.clearChat(true);
+  const chatPanel = document.getElementById("agent-chat-panel");
+  if (chatPanel) chatPanel.hidden = true;
   ArpegioGemini.setAgentDot("idle");
 }
 
-function setMode(el, mode) {
-  agentMode = mode;
-  document.querySelectorAll(".mode-option").forEach((m) => m.classList.remove("active"));
-  el.classList.add("active");
-  const title = document.querySelector(".agent-output-title");
-  if (title) {
-    const dot = title.querySelector(".agent-status-dot");
-    title.innerHTML = "";
-    if (dot) title.appendChild(dot);
-    title.appendChild(document.createTextNode(` Informe del agente — Modo ${mode}`));
-  }
-}
-
-async function runAgent() {
+async function runAgent(opts = {}) {
   const keyInput = document.getElementById("api-key-input");
   const key = (keyInput?.value || ArpegioGemini.getApiKeyFromInputs() || "").trim();
   if (!key) {
     setKeyStatus("x", "La API key no puede estar vacía", "var(--danger)");
     keyInput?.focus();
+    if (opts.intent && opts.intent !== "general") switchView("agente");
     return;
   }
 
   ArpegioGemini.setApiKey(key);
   ArpegioGemini.syncInputs(keyInput?.value || key);
+
+  if (opts.forceMode) setAgentMode(opts.forceMode);
+  if (opts.intentLabel) {
+    agentIntentLabel = opts.intentLabel;
+    setAgentMode(agentMode);
+  }
+  if (opts.intent && opts.intent !== "general") switchView("agente");
 
   const btn = document.getElementById("btn-agent-generate");
   const out = document.getElementById("agent-gemini-output");
@@ -331,16 +388,36 @@ async function runAgent() {
 
   if (btn) btn.disabled = true;
   out.textContent = "Consultando Gemini…";
+  const verdictBar = document.getElementById("agent-verdict-bar");
+  if (verdictBar) verdictBar.hidden = true;
+  const actionsEl = document.getElementById("agent-structured-actions");
+  if (actionsEl) {
+    actionsEl.hidden = true;
+    actionsEl.innerHTML = "";
+  }
   ArpegioGemini.setAgentDot("loading");
 
   try {
     const state = ArpegioData.getState();
-    const alert = filteredAlerts[selectedAlertIndex] || filteredAlerts[0] || null;
-    if (agentMode === "reactivo" && !alert) {
+    const alert =
+      opts.alert ?? filteredAlerts[selectedAlertIndex] ?? filteredAlerts[0] ?? null;
+    const sliderIdx = parseInt(document.getElementById("theta-slider")?.value || "5", 10);
+    const sliderPercentile = ArpegioData.getPercentileFromSliderIndex(sliderIdx);
+    const sliderTheta = ArpegioData.getThetaForPercentile(sliderPercentile);
+
+    if (agentMode === "reactivo" && !alert && opts.intent !== "lab" && opts.intent !== "monitor") {
       throw new Error("No hay alertas en el replay para generar un plan reactivo");
     }
-    const text = await ArpegioGemini.generate(agentMode, state, alert);
-    ArpegioGemini.renderIntoElement(out, text);
+
+    const result = await ArpegioGemini.generate(agentMode, state, {
+      intent: opts.intent || "general",
+      alert,
+      labRun: opts.labRun ?? lastLabRun,
+      labScenario: opts.labScenario ?? currentScenario,
+      sliderTheta,
+      sliderPercentile,
+    });
+    ArpegioGemini.renderAgentResult(out.parentElement, result);
     setKeyStatus("check", "Informe generado · API key activa", "#8B7355");
     ArpegioGemini.setAgentDot("ready");
   } catch (err) {
@@ -350,6 +427,105 @@ async function runAgent() {
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+function askAgentFromAlert() {
+  const alert = filteredAlerts[selectedAlertIndex];
+  if (!alert) return;
+  runAgent({
+    intent: "alert",
+    forceMode: "reactivo",
+    intentLabel: "desde Alertas",
+    alert,
+  });
+}
+
+function askAgentFromMonitor() {
+  runAgent({
+    intent: "monitor",
+    forceMode: "preventivo",
+    intentLabel: "desde Monitor",
+  });
+}
+
+function askAgentFromLab() {
+  if (!lastLabRun && !currentScenario) {
+    alert("Ejecuta un escenario en el Laboratorio antes de consultar al agente.");
+    return;
+  }
+  const mode = lastLabRun?.detected ? "reactivo" : "preventivo";
+  runAgent({
+    intent: "lab",
+    forceMode: mode,
+    intentLabel: "desde Laboratorio",
+    labRun: lastLabRun,
+    labScenario: currentScenario,
+  });
+}
+
+function applyAgentSuggestedTheta() {
+  const p = ArpegioGemini.getLastResult()?.theta_recomendado_percentil;
+  if (!p) return;
+  const idx = ArpegioData.getSliderIndexForPercentile(p);
+  const slider = document.getElementById("theta-slider");
+  if (slider) {
+    slider.value = String(idx);
+    updateTheta(idx);
+  }
+  switchView("lab");
+}
+
+function openAgentSuggestedScenario() {
+  const id = ArpegioGemini.getLastResult()?.escenario_lab_sugerido;
+  if (!id) return;
+  switchView("lab");
+  const btn = document.querySelector(`[data-scenario-id="${id}"]`);
+  if (btn) selectScenario(btn, id);
+}
+
+async function sendAgentChat() {
+  const input = document.getElementById("agent-chat-input");
+  const text = input?.value?.trim();
+  if (!text) return;
+
+  const key = ArpegioGemini.getApiKeyFromInputs();
+  if (!key) {
+    setKeyStatus("x", "La API key no puede estar vacía", "var(--danger)");
+    switchView("agente");
+    return;
+  }
+
+  input.value = "";
+  input.disabled = true;
+  ArpegioGemini.setAgentDot("loading");
+
+  try {
+    await ArpegioGemini.sendChat(text);
+    ArpegioGemini.setAgentDot("ready");
+  } catch (err) {
+    console.error(err);
+    appendChatError(err.message);
+    ArpegioGemini.setAgentDot("error");
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+function appendChatError(message) {
+  const thread = document.getElementById("agent-chat-thread");
+  if (!thread) return;
+  const el = document.createElement("div");
+  el.className = "agent-chat-bubble agent-chat-model";
+  el.style.color = "var(--danger)";
+  el.textContent = message;
+  thread.appendChild(el);
+}
+
+function clearAgentChat() {
+  ArpegioGemini.clearChat(false);
+  const thread = document.getElementById("agent-chat-thread");
+  if (thread) thread.innerHTML = "";
 }
 
 function syncAgentKeyFromSettings() {
@@ -371,6 +547,12 @@ function exportCurrentAlert() {
 
 async function initArpegio() {
   const banner = document.getElementById('data-load-error');
+  ArpegioAgentTools.init(() => ({
+    filteredAlerts,
+    selectedAlertIndex,
+    currentScenario,
+    lastLabRun,
+  }));
   ArpegioGemini.init();
   ArpegioInference.setStatusBadge();
   ArpegioInference.load().then(() => ArpegioInference.setStatusBadge());
@@ -409,6 +591,7 @@ async function initArpegio() {
     if (ArpegioGemini.hasApiKey()) {
       setKeyStatus('check', 'API key en sesión · lista para Gemini', '#8B7355');
     }
+    setAgentMode('preventivo');
   } catch (err) {
     console.error(err);
     if (banner) banner.hidden = false;
