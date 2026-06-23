@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARPegio — Monitoreo L2</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS
+   ═══════════════════════════════════════════════ */
+:root {
+  /* Surfaces */
+  --bg:        #080A0C;
+  --surf1:     #0D1117;
+  --surf2:     #111820;
+  --surf3:     #151E28;
+
+  /* Brand */
+  --orange:    #FF6B1A;
+  --orange2:   #FF8534;
+  --amber:     #E8A317;
+  --copper:    #C4703A;
+
+  /* Café — solo bordes y separadores */
+  --cafe-border: rgba(61,43,31,0.22);
+  --cafe-sep:    rgba(61,43,31,0.14);
+
+  /* Text */
+  --text:      #E8E4DF;
+  --muted:     #6B7280;
+  --faint:     #3D4654;
+
+  /* Severidad */
+  --danger:    #FF4D00;
+  --danger-bg: rgba(255,77,0,0.10);
+  --danger-bd: rgba(255,77,0,0.40);
+  --med:       #E8A317;
+  --med-bg:    rgba(232,163,23,0.10);
+  --med-bd:    rgba(232,163,23,0.35);
+  --low:       #8B7355;
+  --low-bg:    rgba(139,115,85,0.12);
+  --low-bd:    rgba(139,115,85,0.30);
+
+  /* Tráfico normal */
+  --normal:    #8B7355;
+
+  /* UI */
+  --border:    rgba(61,43,31,0.30);
+  --border-hi: rgba(255,107,26,0.45);
+
+  /* Glow — solo alertas */
+  --glow-danger: 0 0 12px rgba(255,77,0,0.30);
+  --glow-orange: 0 0 14px rgba(255,107,26,0.30);
+
+  /* Tipografía */
+  --font-logo: 'Rajdhani', sans-serif;
+  --font-ui:   'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Radios */
+  --r-panel: 4px;
+  --r-card:  4px;
+  --r-btn:   3px;
+  --r-badge: 2px;
+}
+
+/* ═══════════════════════════════════════════════
+   RESET + BASE
+   ═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Fondo: líneas de escaneo horizontales */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.012) 0px,
+      rgba(255,255,255,0.012) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ruido digital: SVG data URI muy sutil */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+/* Scanline sweep animado */
+.scanline {
+  position: fixed;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,107,26,0.06) 50%, transparent 100%);
+  animation: scanline-sweep 8s linear infinite;
+  pointer-events: none;
+  z-index: 9999;
+}
+@keyframes scanline-sweep {
+  0%   { transform: translateY(0); opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════════════
+   NAVEGACIÓN — HEADER 48px
+   ═══════════════════════════════════════════════ */
+.nav {
+  height: 48px;
+  background: var(--surf1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  padding: 0 20px;
+  gap: 0;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 28px;
+  border-right: 1px solid var(--cafe-sep);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-family: var(--font-logo);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+.logo-text .lo { color: var(--orange); }
+
+.logo-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  max-width: 140px;
+}
+
+.nav-tabs {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+  user-select: none;
+  white-space: nowrap;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active {
+  color: var(--orange);
+  border-bottom-color: var(--orange);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  padding-left: 20px;
+  flex-shrink: 0;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 6px var(--orange);
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+@keyframes dot-pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+.ts {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+
+.theta-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--amber);
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border: 1px solid var(--med-bd);
+  border-radius: var(--r-badge);
+  background: var(--med-bg);
+}
+
+.nav-settings {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-btn);
+  background: none;
+  transition: color .15s, border-color .15s;
+}
+.nav-settings:hover { color: var(--text); border-color: var(--copper); }
+
+/* ═══════════════════════════════════════════════
+   VIEWS
+   ═══════════════════════════════════════════════ */
+.view { display: none; flex: 1; overflow-y: auto; }
+.view.active { display: flex; }
+
+/* ═══════════════════════════════════════════════
+   SHARED LAYOUT UTILS
+   ═══════════════════════════════════════════════ */
+.panel {
+  background: var(--surf1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: 16px;
+}
+
+.panel-title {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.kpi {
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--copper);
+  opacity: 0.5;
+}
+.kpi.alert::before { background: var(--danger); opacity: 1; }
+.kpi.warn::before  { background: var(--amber); opacity: 0.8; }
+
+.kpi-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.kpi-val {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.kpi-val.orange { color: var(--orange); }
+.kpi-val.amber  { color: var(--amber); }
+.kpi-val.danger { color: var(--danger); }
+.kpi-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* BUTTONS */
+.btn-primary {
+  background: var(--orange);
+  border: none;
+  border-radius: var(--r-btn);
+  padding: 8px 18px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background .15s, box-shadow .15s;
+}
+.btn-primary:hover {
+  background: var(--orange2);
+  box-shadow: var(--glow-orange);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-btn);
+  padding: 7px 14px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.btn-ghost:hover {
+  border-color: var(--copper);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-bd);
+  border-radius: var(--r-btn);
+  padding: 8px 18px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger);
+  cursor: pointer;
+  transition: box-shadow .15s;
+}
+.btn-danger:hover { box-shadow: var(--glow-danger); }
+
+/* BADGE DE SEVERIDAD */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  padding: 3px 7px;
+  border-radius: var(--r-badge);
+  white-space: nowrap;
+}
+.badge.crit  { background: var(--danger-bg); border: 1px solid var(--danger-bd); color: var(--danger); }
+.badge.med   { background: var(--med-bg);    border: 1px solid var(--med-bd);    color: var(--amber);  }
+.badge.low   { background: var(--low-bg);    border: 1px solid var(--low-bd);    color: var(--low);    }
+
+/* TABLA SIEM */
+.siem-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.siem-table th {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  padding: 0 12px 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--cafe-sep);
+}
+.siem-table td {
+  padding: 0 12px;
+  height: 38px;
+  vertical-align: middle;
+  font-size: 12px;
+  border-bottom: 1px solid var(--cafe-sep);
+}
+.siem-table tr:nth-child(even) td { background: rgba(17,24,32,0.5); }
+.siem-table tr:hover td { background: rgba(255,107,26,0.04); cursor: pointer; }
+.siem-table tr.selected td { background: rgba(255,107,26,0.07); border-left: 2px solid var(--orange); }
+
+/* ALERTA STRIP (últimas 3 en Monitor) */
+.alert-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.alert-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--cafe-sep);
+  cursor: pointer;
+  transition: background .1s;
+}
+.alert-strip-row:last-child { border-bottom: none; }
+.alert-strip-row:hover { background: rgba(255,107,26,0.03); }
+
+/* TERMINAL */
+.terminal {
+  background: #060810;
+  border: 1px solid var(--cafe-border);
+  border-radius: var(--r-panel);
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+  overflow-y: auto;
+}
+.terminal .t-prompt { color: var(--orange); }
+.terminal .t-ok     { color: var(--amber); }
+.terminal .t-err    { color: var(--danger); }
+.terminal .t-info   { color: var(--normal); }
+
+/* INPUT */
+.input-field {
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-btn);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  width: 100%;
+  outline: none;
+  transition: border-color .15s;
+}
+.input-field:focus { border-color: var(--copper); }
+.input-field::placeholder { color: var(--faint); }
+
+/* TABS INTERNOS */
+.inner-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--cafe-sep);
+  margin-bottom: 20px;
+}
+.inner-tab {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .15s, border-color .15s;
+  user-select: none;
+}
+.inner-tab:hover { color: var(--text); }
+.inner-tab.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--cafe-border); border-radius: 2px; }
+
+/* CLIP-PATH para paneles críticos */
+.panel-critical {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  border-color: var(--danger-bd);
+}
+.panel-warn {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  border-color: var(--med-bd);
+}
+
+/* ═══════════════════════════════════════════════
+   PANTALLA 1: MONITOR
+   ═══════════════════════════════════════════════ */
+#view-monitor {
+  flex-direction: column;
+  padding: 24px 28px;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.monitor-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.monitor-title {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.hist-wrapper {
+  position: relative;
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: 16px 20px 12px;
+  height: 220px;
+}
+.hist-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.monitor-strip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.ver-todas {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--orange);
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  background: none;
+  border: none;
+}
+.ver-todas:hover { text-decoration: underline; }
+
+/* ═══════════════════════════════════════════════
+   PANTALLA 2: RED
+   ═══════════════════════════════════════════════ */
+#view-red {
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.red-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--surf1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.red-sidebar-title {
+  padding: 14px 16px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--cafe-sep);
+}
+
+.node-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--cafe-sep);
+  cursor: pointer;
+  transition: background .1s;
+}
+.node-list-item:hover { background: rgba(255,255,255,0.02); }
+.node-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.node-dot.normal { background: var(--normal); }
+.node-dot.alert  { background: var(--danger); box-shadow: 0 0 6px var(--danger); animation: dot-pulse 1.2s ease-in-out infinite; }
+.node-dot.warn   { background: var(--amber); }
+
+.node-name { font-size: 12px; font-weight: 500; color: var(--text); }
+.node-ip   { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.node-status {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.node-status.normal { color: var(--normal); }
+.node-status.alert  { color: var(--danger); }
+.node-status.warn   { color: var(--amber); }
+
+.red-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.red-topo {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.red-topo-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.red-timeline {
+  height: 80px;
+  background: var(--surf1);
+  border-top: 1px solid var(--border);
+  padding: 10px 20px;
+}
+
+/* ═══════════════════════════════════════════════
+   PANTALLA 3: ALERTAS
+   ═══════════════════════════════════════════════ */
+#view-alertas {
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.alertas-header {
+  padding: 20px 28px 16px;
+  background: var(--surf1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.alertas-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-badge);
+  padding: 5px 10px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.filter-chip:hover { border-color: var(--copper); color: var(--text); }
+.filter-chip.active { border-color: var(--orange); color: var(--orange); background: rgba(255,107,26,0.08); }
+
+.alertas-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.alertas-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.alertas-detail {
+  width: 320px;
+  flex-shrink: 0;
+  background: var(--surf1);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+.detail-section-title {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--cafe-sep);
+}
+
+.feature-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--cafe-sep);
+}
+.feature-row:last-child { border-bottom: none; }
+.feature-key   { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.feature-val   { font-family: var(--font-mono); font-size: 10px; color: var(--text); }
+.feature-val.hi { color: var(--danger); }
+.feature-val.md { color: var(--amber); }
+
+/* ═══════════════════════════════════════════════
+   PANTALLA 4: LABORATORIO
+   ═══════════════════════════════════════════════ */
+#view-lab {
+  flex-direction: row;
+  gap: 0;
+  overflow: hidden;
+}
+
+.lab-left {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+}
+
+.lab-right {
+  width: 300px;
+  flex-shrink: 0;
+  background: var(--surf1);
+  border-left: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.scenario-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.scenario-btn {
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: 16px;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.scenario-btn:hover {
+  border-color: var(--copper);
+  background: rgba(255,107,26,0.04);
+}
+.scenario-btn.selected {
+  border-color: var(--orange);
+  background: rgba(255,107,26,0.07);
+}
+.scenario-btn.danger-btn { border-color: var(--danger-bd); }
+.scenario-btn.danger-btn:hover { border-color: var(--danger); box-shadow: var(--glow-danger); }
+.scenario-btn.selected.danger-btn { border-color: var(--danger); box-shadow: var(--glow-danger); background: var(--danger-bg); }
+
+.scenario-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.scenario-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.scenario-desc {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.slider-wrap { display: flex; flex-direction: column; gap: 8px; }
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.slider-val { font-family: var(--font-mono); color: var(--orange); font-size: 13px; }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--surf3);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--orange);
+  cursor: pointer;
+  box-shadow: var(--glow-orange);
+}
+
+.result-bar-wrap { display: flex; flex-direction: column; gap: 6px; }
+.result-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+.result-bar-bg {
+  height: 8px;
+  background: var(--surf3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.result-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .5s ease, background .5s;
+}
+
+/* ═══════════════════════════════════════════════
+   PANTALLA 5: AGENTE IA
+   ═══════════════════════════════════════════════ */
+#view-agente {
+  flex-direction: column;
+  padding: 28px;
+  gap: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.agente-banner {
+  background: var(--surf2);
+  border: 1px solid var(--cafe-border);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--r-panel);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.banner-icon { font-size: 16px; flex-shrink: 0; }
+.banner-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.banner-text strong { color: var(--text); font-weight: 600; }
+
+.agente-key-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+}
+.mode-option {
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background .15s;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mode-option:last-child { border-right: none; }
+.mode-option:hover { background: rgba(255,255,255,0.02); }
+.mode-option.active { background: rgba(255,107,26,0.07); }
+.mode-option-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.mode-option.active .mode-option-label { color: var(--orange); }
+.mode-radio {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+.mode-option.active .mode-radio { border-color: var(--orange); }
+.mode-option.active .mode-radio::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--orange);
+}
+.mode-option-desc { font-size: 11px; color: var(--muted); padding-left: 20px; }
+
+.agent-output {
+  background: var(--surf1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: 20px;
+}
+.agent-output-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agent-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--amber);
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+.intervention-list { display: flex; flex-direction: column; gap: 8px; }
+.intervention-item {
+  background: var(--surf2);
+  border: 1px solid var(--cafe-border);
+  border-radius: var(--r-panel);
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.intervention-ts {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+  padding-top: 1px;
+}
+.intervention-body { flex: 1; }
+.intervention-action { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+.intervention-detail { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+
+/* ═══════════════════════════════════════════════
+   PANTALLA 6: AJUSTES
+   ═══════════════════════════════════════════════ */
+#view-ajustes {
+  flex-direction: column;
+  padding: 28px;
+  gap: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.settings-section { display: flex; flex-direction: column; gap: 12px; }
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cafe-sep);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-key {
+  width: 180px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.settings-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+}
+.settings-val.readonly { color: var(--faint); }
+.settings-val.orange   { color: var(--orange); }
+
+.arch-diagram {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.arch-node {
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-btn);
+  padding: 4px 10px;
+  color: var(--text);
+}
+.arch-arrow { color: var(--muted); }
+.arch-node.bottleneck { border-color: var(--copper); color: var(--copper); }
+
+/* ═══════════════════════════════════════════════
+   MOBILE — Monitor + Agente
+   ═══════════════════════════════════════════════ */
+@media (max-width: 700px) {
+  .nav { padding: 0 12px; overflow-x: auto; }
+  .logo-tag { display: none; }
+  .nav-tab { padding: 0 12px; font-size: 10px; }
+  .ts, .theta-badge { display: none; }
+  .status-indicator { gap: 4px; font-size: 9px; }
+
+  #view-monitor {
+    padding: 16px;
+    gap: 16px;
+  }
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi-val { font-size: 20px; }
+
+  #view-agente {
+    padding: 16px;
+    gap: 16px;
+  }
+  .mode-grid { grid-template-columns: 1fr; }
+  .mode-option { border-right: none; border-bottom: 1px solid var(--border); }
+  .mode-option:last-child { border-bottom: none; }
+
+  /* Ocultar vistas complejas en mobile */
+  #view-red, #view-lab { flex-direction: column; }
+  .red-sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .alertas-body { flex-direction: column; }
+  .alertas-detail { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  .lab-left, .lab-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  #view-lab { overflow-y: auto; }
+}
+</style>
+</head>
+<body>
+
+<div class="scanline"></div>
+
+<div class="shell">
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav">
+  <div class="nav-logo">
+    <span class="logo-text"><span class="lo">ARP</span>egio</span>
+    <span class="logo-tag">Monitoreo pasivo L2<br>Autoencoder · Agente IA</span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-view="monitor">Monitor</button>
+    <button class="nav-tab" data-view="red">Red</button>
+    <button class="nav-tab" data-view="alertas">Alertas</button>
+    <button class="nav-tab" data-view="lab">Laboratorio</button>
+    <button class="nav-tab" data-view="agente">Agente</button>
+  </div>
+  <div class="nav-right">
+    <div class="status-indicator">
+      <div class="status-dot"></div>
+      <span>Monitoreando</span>
+    </div>
+    <div class="ts" id="nav-ts">2026-06-22 · 14:37:09</div>
+    <div class="theta-badge">θ = 0.114</div>
+    <button class="nav-settings" data-view="ajustes">⚙</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════
+     PANTALLA 1: MONITOR
+     ═══════════════════════════════════════ -->
+<div id="view-monitor" class="view active">
+
+  <div class="monitor-header">
+    <span class="monitor-title">Vista general del sistema</span>
+    <span class="ts" style="font-size:10px">Ventana: 60 s · deslizante · eth0 activa</span>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi warn">
+      <div class="kpi-label">Umbral θ</div>
+      <div class="kpi-val orange">0.114</div>
+      <div class="kpi-sub">percentil 95 entrenamiento</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">AUC-ROC</div>
+      <div class="kpi-val amber">0.999</div>
+      <div class="kpi-sub">↑ +0.012 vs base</div>
+    </div>
+    <div class="kpi alert">
+      <div class="kpi-label">Alertas activas</div>
+      <div class="kpi-val danger" id="alc">3</div>
+      <div class="kpi-sub">2 críticas · 1 media</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Tasa FP</div>
+      <div class="kpi-val">2.1%</div>
+      <div class="kpi-sub">últimas 4 h</div>
+    </div>
+  </div>
+
+  <!-- HISTOGRAMA -->
+  <div class="hist-wrapper">
+    <div class="hist-title">Error de reconstrucción — distribución de ventanas</div>
+    <svg viewBox="0 0 900 140" style="width:100%;height:calc(100% - 24px)" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <!-- Zona normal -->
+      <rect x="0" y="0" width="440" height="130" fill="rgba(139,115,85,0.04)" rx="2"/>
+      <!-- Zona ataque -->
+      <rect x="450" y="0" width="450" height="130" fill="rgba(255,77,0,0.04)" rx="2"/>
+
+      <!-- Barras normales -->
+      <rect x="10"  y="118" width="18" height="8"   fill="rgba(139,115,85,0.45)" rx="1"/>
+      <rect x="32"  y="108" width="18" height="18"  fill="rgba(139,115,85,0.50)" rx="1"/>
+      <rect x="54"  y="90"  width="18" height="36"  fill="rgba(139,115,85,0.55)" rx="1"/>
+      <rect x="76"  y="66"  width="18" height="60"  fill="rgba(139,115,85,0.60)" rx="1"/>
+      <rect x="98"  y="44"  width="18" height="82"  fill="rgba(139,115,85,0.70)" rx="1"/>
+      <rect x="120" y="28"  width="18" height="98"  fill="rgba(139,115,85,0.75)" rx="1"/>
+      <rect x="142" y="22"  width="18" height="104" fill="rgba(139,115,85,0.80)" rx="1"/>
+      <rect x="164" y="30"  width="18" height="96"  fill="rgba(139,115,85,0.75)" rx="1"/>
+      <rect x="186" y="48"  width="18" height="78"  fill="rgba(139,115,85,0.65)" rx="1"/>
+      <rect x="208" y="68"  width="18" height="58"  fill="rgba(139,115,85,0.55)" rx="1"/>
+      <rect x="230" y="86"  width="18" height="40"  fill="rgba(139,115,85,0.50)" rx="1"/>
+      <rect x="252" y="100" width="18" height="26"  fill="rgba(139,115,85,0.42)" rx="1"/>
+      <rect x="274" y="110" width="18" height="16"  fill="rgba(139,115,85,0.38)" rx="1"/>
+      <rect x="296" y="116" width="18" height="10"  fill="rgba(139,115,85,0.35)" rx="1"/>
+      <rect x="318" y="120" width="18" height="6"   fill="rgba(139,115,85,0.30)" rx="1"/>
+      <rect x="340" y="122" width="18" height="4"   fill="rgba(139,115,85,0.25)" rx="1"/>
+      <rect x="362" y="123" width="18" height="3"   fill="rgba(139,115,85,0.20)" rx="1"/>
+      <rect x="384" y="124" width="18" height="2"   fill="rgba(139,115,85,0.15)" rx="1"/>
+      <rect x="406" y="124" width="18" height="2"   fill="rgba(139,115,85,0.12)" rx="1"/>
+
+      <!-- Línea θ -->
+      <line x1="445" y1="4" x2="445" y2="128" stroke="#FF6B1A" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="448" y="14" fill="#FF6B1A" font-family="IBM Plex Mono" font-size="9" font-weight="500">θ = 0.114</text>
+      <text x="448" y="24" fill="rgba(255,107,26,0.55)" font-family="IBM Plex Mono" font-size="8">umbral</text>
+
+      <!-- Barras ataque -->
+      <rect x="456" y="122" width="18" height="4"   fill="rgba(255,77,0,0.35)" rx="1"/>
+      <rect x="478" y="118" width="18" height="8"   fill="rgba(255,77,0,0.42)" rx="1"/>
+      <rect x="500" y="110" width="18" height="16"  fill="rgba(255,77,0,0.50)" rx="1"/>
+      <rect x="522" y="96"  width="18" height="30"  fill="rgba(255,77,0,0.58)" rx="1"/>
+      <rect x="544" y="74"  width="18" height="52"  fill="rgba(255,77,0,0.65)" rx="1"/>
+      <rect x="566" y="50"  width="18" height="76"  fill="rgba(255,77,0,0.72)" rx="1"/>
+      <rect x="588" y="36"  width="18" height="90"  fill="rgba(255,77,0,0.80)" rx="1"/>
+      <rect x="610" y="48"  width="18" height="78"  fill="rgba(255,77,0,0.72)" rx="1"/>
+      <rect x="632" y="64"  width="18" height="62"  fill="rgba(255,77,0,0.62)" rx="1"/>
+      <rect x="654" y="80"  width="18" height="46"  fill="rgba(255,77,0,0.52)" rx="1"/>
+      <rect x="676" y="96"  width="18" height="30"  fill="rgba(255,77,0,0.42)" rx="1"/>
+      <rect x="698" y="108" width="18" height="18"  fill="rgba(255,77,0,0.35)" rx="1"/>
+      <rect x="720" y="116" width="18" height="10"  fill="rgba(255,77,0,0.28)" rx="1"/>
+      <rect x="742" y="120" width="18" height="6"   fill="rgba(255,77,0,0.22)" rx="1"/>
+
+      <!-- Etiquetas eje X -->
+      <line x1="0" y1="128" x2="900" y2="128" stroke="rgba(61,43,31,0.35)" stroke-width="0.5"/>
+      <text x="4"   y="138" fill="#3D4654" font-family="IBM Plex Mono" font-size="8">0.00</text>
+      <text x="200" y="138" fill="#3D4654" font-family="IBM Plex Mono" font-size="8">0.06</text>
+      <text x="430" y="138" fill="#6B7280" font-family="IBM Plex Mono" font-size="8">0.114</text>
+      <text x="660" y="138" fill="#3D4654" font-family="IBM Plex Mono" font-size="8">0.30</text>
+      <text x="860" y="138" fill="#3D4654" font-family="IBM Plex Mono" font-size="8">0.50</text>
+
+      <!-- Leyendas -->
+      <rect x="4" y="4" width="8" height="8" rx="1" fill="rgba(139,115,85,0.65)"/>
+      <text x="16" y="11" fill="#6B7280" font-family="IBM Plex Sans" font-size="8" font-weight="500">Tráfico normal</text>
+      <rect x="90" y="4" width="8" height="8" rx="1" fill="rgba(255,77,0,0.70)"/>
+      <text x="102" y="11" fill="#6B7280" font-family="IBM Plex Sans" font-size="8" font-weight="500">Anomalía detectada</text>
+    </svg>
+  </div>
+
+  <!-- STRIP DE ÚLTIMAS ALERTAS -->
+  <div class="panel" style="padding: 16px 20px">
+    <div class="monitor-strip-header">
+      <div class="panel-title" style="margin-bottom:0">Últimas alertas</div>
+      <button class="ver-todas" onclick="switchView('alertas')">Ver todas →</button>
+    </div>
+    <div class="alert-strip">
+      <div class="alert-strip-row">
+        <span class="badge crit">Crítico</span>
+        <span style="font-size:12px;font-weight:500">ARP Spoofing detectado</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--danger);margin-left:auto">0.97</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:35:42</span>
+      </div>
+      <div class="alert-strip-row">
+        <span class="badge crit">Crítico</span>
+        <span style="font-size:12px;font-weight:500">MAC Flood — tabla CAM saturada</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--danger);margin-left:auto">0.94</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:33:17</span>
+      </div>
+      <div class="alert-strip-row">
+        <span class="badge med">Media</span>
+        <span style="font-size:12px;font-weight:500">Escaneo de puertos — SYN scan</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--amber);margin-left:auto">0.71</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:31:05</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /view-monitor -->
+
+
+<!-- ═══════════════════════════════════════
+     PANTALLA 2: RED
+     ═══════════════════════════════════════ -->
+<div id="view-red" class="view">
+
+  <!-- Sidebar de nodos -->
+  <div class="red-sidebar">
+    <div class="red-sidebar-title">Nodos de red</div>
+    <div class="node-list-item">
+      <div class="node-dot normal"></div>
+      <div>
+        <div class="node-name">Alpine-1</div>
+        <div class="node-ip">192.168.1.10</div>
+      </div>
+      <div class="node-status normal">Normal</div>
+    </div>
+    <div class="node-list-item">
+      <div class="node-dot normal"></div>
+      <div>
+        <div class="node-name">Alpine-2</div>
+        <div class="node-ip">192.168.1.20</div>
+      </div>
+      <div class="node-status normal">Normal</div>
+    </div>
+    <div class="node-list-item">
+      <div class="node-dot warn"></div>
+      <div>
+        <div class="node-name">Gateway</div>
+        <div class="node-ip">192.168.1.1</div>
+      </div>
+      <div class="node-status warn">Objetivo</div>
+    </div>
+    <div class="node-list-item">
+      <div class="node-dot alert"></div>
+      <div>
+        <div class="node-name">Kali</div>
+        <div class="node-ip">192.168.1.99</div>
+      </div>
+      <div class="node-status alert">⚠ Alerta</div>
+    </div>
+    <div class="node-list-item" style="border:none">
+      <div class="node-dot" style="background:var(--amber);"></div>
+      <div>
+        <div class="node-name">OVS Switch</div>
+        <div class="node-ip">troncal · OpenVSwitch</div>
+      </div>
+      <div class="node-status warn">Activo</div>
+    </div>
+
+    <div style="padding:16px;margin-top:auto;border-top:1px solid var(--cafe-sep)">
+      <div class="panel-title" style="margin-bottom:10px">Segmento LAN</div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);line-height:1.8">
+        192.168.1.0/24<br>
+        IEEE 802.3 Ethernet<br>
+        Modo escucha pasiva<br>
+        Paquetes: <span id="red-pkts" style="color:var(--text)">1 284 703</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mapa de topología + timeline -->
+  <div class="red-main">
+    <div class="red-topo">
+      <svg class="red-topo-svg" viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="kali-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#FF4D00" stop-opacity="0.20"/>
+            <stop offset="100%" stop-color="#FF4D00" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="f-danger">
+            <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#FF4D00" flood-opacity="0.4"/>
+          </filter>
+          <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="rgba(184,149,106,0.4)"/>
+          </marker>
+          <marker id="arr-alert" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#FF4D00"/>
+          </marker>
+        </defs>
+
+        <!-- Fondo grid hex sutil -->
+        <pattern id="hex-bg" x="0" y="0" width="40" height="46" patternUnits="userSpaceOnUse">
+          <path d="M20,1 L39,11 L39,35 L20,45 L1,35 L1,11 Z" fill="none" stroke="rgba(61,43,31,0.07)" stroke-width="0.5"/>
+        </pattern>
+        <rect width="900" height="480" fill="url(#hex-bg)"/>
+
+        <!-- Título segmento -->
+        <text x="450" y="460" text-anchor="middle" fill="rgba(61,43,31,0.5)" font-family="IBM Plex Mono" font-size="10" letter-spacing="0.1em">IEEE 802.3 · 192.168.1.0/24 · ESCUCHA PASIVA</text>
+
+        <!-- OVS Switch central -->
+        <rect x="375" y="195" width="150" height="60" rx="4" fill="#111820" stroke="#E8A317" stroke-width="1.5"/>
+        <rect x="375" y="195" width="150" height="3" rx="4" fill="#E8A317"/>
+        <text x="450" y="220" text-anchor="middle" fill="#E8A317" font-family="IBM Plex Sans" font-size="12" font-weight="600">OVS Switch</text>
+        <text x="450" y="236" text-anchor="middle" fill="#6B7280" font-family="IBM Plex Mono" font-size="9">OpenVSwitch · troncal</text>
+        <text x="450" y="250" text-anchor="middle" fill="#3D4654" font-family="IBM Plex Mono" font-size="9">802.1Q · modo espejo</text>
+
+        <!-- ── LINKS NORMALES ── -->
+        <!-- Alpine-1 → OVS -->
+        <line x1="190" y1="130" x2="375" y2="210" stroke="rgba(139,115,85,0.35)" stroke-width="1.5" stroke-dasharray="6 4">
+          <animate attributeName="stroke-dashoffset" values="10;0" dur="1.2s" repeatCount="indefinite"/>
+        </line>
+        <!-- Alpine-2 → OVS -->
+        <line x1="190" y1="340" x2="375" y2="240" stroke="rgba(139,115,85,0.35)" stroke-width="1.5" stroke-dasharray="6 4">
+          <animate attributeName="stroke-dashoffset" values="10;0" dur="1.5s" repeatCount="indefinite"/>
+        </line>
+        <!-- Gateway → OVS -->
+        <line x1="710" y1="130" x2="525" y2="210" stroke="rgba(139,115,85,0.30)" stroke-width="1.5" stroke-dasharray="6 4">
+          <animate attributeName="stroke-dashoffset" values="10;0" dur="1.8s" repeatCount="indefinite"/>
+        </line>
+
+        <!-- ── LINK KALI — ATAQUE ── -->
+        <line x1="712" y1="340" x2="525" y2="245" stroke="#FF4D00" stroke-width="2.5" stroke-dasharray="5 3" filter="url(#f-danger)">
+          <animate attributeName="stroke-dashoffset" values="8;0" dur="0.6s" repeatCount="indefinite"/>
+        </line>
+
+        <!-- Partículas en enlace de ataque -->
+        <circle r="4" fill="#FF4D00" opacity="0.9">
+          <animateMotion dur="0.7s" repeatCount="indefinite" path="M712,340 L525,245"/>
+        </circle>
+        <circle r="3" fill="#FF6B1A" opacity="0.7">
+          <animateMotion dur="0.7s" begin="0.23s" repeatCount="indefinite" path="M712,340 L525,245"/>
+        </circle>
+        <circle r="2.5" fill="#FF4D00" opacity="0.5">
+          <animateMotion dur="0.7s" begin="0.46s" repeatCount="indefinite" path="M712,340 L525,245"/>
+        </circle>
+
+        <!-- ── NODO Alpine-1 ── -->
+        <rect x="80" y="90" width="220" height="80" rx="4" fill="#0D1117" stroke="rgba(61,43,31,0.45)" stroke-width="1"/>
+        <rect x="80" y="90" width="220" height="2" rx="4" fill="rgba(139,115,85,0.5)"/>
+        <circle cx="108" cy="130" r="8" fill="rgba(139,115,85,0.12)" stroke="#8B7355" stroke-width="1.5"/>
+        <text x="108" y="134" text-anchor="middle" fill="#8B7355" font-family="IBM Plex Mono" font-size="8">H</text>
+        <text x="122" y="122" fill="#E8E4DF" font-family="IBM Plex Sans" font-size="13" font-weight="600">Alpine-1</text>
+        <text x="122" y="136" fill="#6B7280" font-family="IBM Plex Mono" font-size="10">192.168.1.10</text>
+        <text x="122" y="150" fill="#3D4654" font-family="IBM Plex Mono" font-size="9">aa:bb:cc:01:00:01</text>
+        <text x="280" y="106" text-anchor="end" fill="#8B7355" font-family="IBM Plex Mono" font-size="9" font-weight="500">NORMAL</text>
+
+        <!-- ── NODO Alpine-2 ── -->
+        <rect x="80" y="300" width="220" height="80" rx="4" fill="#0D1117" stroke="rgba(61,43,31,0.45)" stroke-width="1"/>
+        <rect x="80" y="300" width="220" height="2" rx="4" fill="rgba(139,115,85,0.5)"/>
+        <circle cx="108" cy="340" r="8" fill="rgba(139,115,85,0.12)" stroke="#8B7355" stroke-width="1.5"/>
+        <text x="108" y="344" text-anchor="middle" fill="#8B7355" font-family="IBM Plex Mono" font-size="8">H</text>
+        <text x="122" y="332" fill="#E8E4DF" font-family="IBM Plex Sans" font-size="13" font-weight="600">Alpine-2</text>
+        <text x="122" y="346" fill="#6B7280" font-family="IBM Plex Mono" font-size="10">192.168.1.20</text>
+        <text x="122" y="360" fill="#3D4654" font-family="IBM Plex Mono" font-size="9">aa:bb:cc:02:00:01</text>
+        <text x="280" y="316" text-anchor="end" fill="#8B7355" font-family="IBM Plex Mono" font-size="9" font-weight="500">NORMAL</text>
+
+        <!-- ── NODO Gateway ── -->
+        <rect x="600" y="90" width="220" height="80" rx="4" fill="#0D1117" stroke="rgba(232,163,23,0.30)" stroke-width="1"/>
+        <rect x="600" y="90" width="220" height="2" rx="4" fill="rgba(232,163,23,0.50)"/>
+        <circle cx="628" cy="130" r="8" fill="rgba(232,163,23,0.10)" stroke="#E8A317" stroke-width="1.5"/>
+        <text x="628" y="134" text-anchor="middle" fill="#E8A317" font-family="IBM Plex Mono" font-size="8">GW</text>
+        <text x="642" y="122" fill="#E8E4DF" font-family="IBM Plex Sans" font-size="13" font-weight="600">Gateway</text>
+        <text x="642" y="136" fill="#6B7280" font-family="IBM Plex Mono" font-size="10">192.168.1.1</text>
+        <text x="642" y="150" fill="#3D4654" font-family="IBM Plex Mono" font-size="9">aa:bb:cc:00:00:01</text>
+        <text x="810" y="106" text-anchor="end" fill="#E8A317" font-family="IBM Plex Mono" font-size="9" font-weight="500">OBJETIVO ARP</text>
+
+        <!-- ── NODO Kali — ALERTA ── -->
+        <ellipse cx="712" cy="340" rx="115" ry="48" fill="url(#kali-glow)"/>
+        <rect x="597" y="300" width="230" height="80" rx="4" fill="#0D1117" stroke="#FF4D00" stroke-width="1.5" filter="url(#f-danger)"/>
+        <!-- Esquina recortada top-right -->
+        <polygon points="817,300 827,310 827,380 597,380 597,300" fill="none" stroke="#FF4D00" stroke-width="1.5"/>
+        <rect x="597" y="300" width="230" height="2" fill="#FF4D00"/>
+        <circle cx="625" cy="340" r="8" fill="rgba(255,77,0,0.15)" stroke="#FF4D00" stroke-width="1.5"/>
+        <text x="625" y="344" text-anchor="middle" fill="#FF4D00" font-family="IBM Plex Mono" font-size="8">!</text>
+        <text x="639" y="322" fill="#FF4D00" font-family="IBM Plex Sans" font-size="13" font-weight="700">Kali Linux</text>
+        <text x="639" y="336" fill="#6B7280" font-family="IBM Plex Mono" font-size="10">192.168.1.99</text>
+        <text x="639" y="350" fill="#3D4654" font-family="IBM Plex Mono" font-size="9">aa:bb:cc:11:22:33</text>
+        <text x="820" y="316" text-anchor="end" fill="#FF4D00" font-family="IBM Plex Mono" font-size="9" font-weight="700">⚠ ARP SPOOF</text>
+        <text x="820" y="328" text-anchor="end" fill="rgba(255,77,0,0.60)" font-family="IBM Plex Mono" font-size="8">score: 0.97</text>
+
+        <!-- Leyenda de enlaces -->
+        <rect x="30" y="420" width="10" height="2" rx="1" fill="rgba(139,115,85,0.50)"/>
+        <text x="44" y="424" fill="#6B7280" font-family="IBM Plex Sans" font-size="9">Tráfico normal</text>
+        <rect x="130" y="420" width="10" height="2" rx="1" fill="#FF4D00"/>
+        <text x="144" y="424" fill="#FF4D00" font-family="IBM Plex Sans" font-size="9">Enlace bajo ataque</text>
+      </svg>
+    </div>
+
+    <!-- Mini timeline solo en Red -->
+    <div class="red-timeline">
+      <div class="panel-title" style="margin-bottom:6px">Ventanas temporales — 2 h</div>
+      <div id="red-tl" style="display:flex;gap:2px;height:28px;border-radius:3px;overflow:hidden"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--faint)">12:30</span>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--faint)">13:00</span>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--faint)">13:30</span>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--faint)">14:00</span>
+        <span style="font-family:var(--font-mono);font-size:9px;color:var(--faint)">14:37</span>
+      </div>
+    </div>
+  </div>
+</div><!-- /view-red -->
+
+
+<!-- ═══════════════════════════════════════
+     PANTALLA 3: ALERTAS
+     ═══════════════════════════════════════ -->
+<div id="view-alertas" class="view">
+
+  <!-- Filtros -->
+  <div class="alertas-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted)">Cola priorizada de alertas</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" style="font-size:10px;padding:5px 12px">Exportar CSV</button>
+        <button class="btn-ghost" style="font-size:10px;padding:5px 12px">Marcar leídas</button>
+      </div>
+    </div>
+    <div class="alertas-filters">
+      <div class="filter-chip active">Todas</div>
+      <div class="filter-chip">Crítico</div>
+      <div class="filter-chip">Media</div>
+      <div class="filter-chip">Baja</div>
+      <div style="width:1px;background:var(--cafe-sep);margin:0 4px"></div>
+      <div class="filter-chip">ARP Spoof</div>
+      <div class="filter-chip">MAC Flood</div>
+      <div class="filter-chip">Escaneo</div>
+      <div class="filter-chip">Recon ARP</div>
+    </div>
+  </div>
+
+  <div class="alertas-body">
+    <!-- Tabla -->
+    <div class="alertas-table-wrap">
+      <table class="siem-table">
+        <thead>
+          <tr>
+            <th style="width:70px">Score</th>
+            <th style="width:90px">Severidad</th>
+            <th style="width:140px">Familia</th>
+            <th>Origen</th>
+            <th style="width:100px">Timestamp</th>
+            <th style="width:90px">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="selected" onclick="selectAlert(this)">
+            <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--danger)">0.97</span></td>
+            <td><span class="badge crit">Crítico</span></td>
+            <td style="font-size:12px;font-weight:500">ARP Spoofing</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">192.168.1.99 → broadcast</td>
+            <td style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:35:42</td>
+            <td><span class="badge crit">Activa</span></td>
+          </tr>
+          <tr onclick="selectAlert(this)">
+            <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--danger)">0.94</span></td>
+            <td><span class="badge crit">Crítico</span></td>
+            <td style="font-size:12px;font-weight:500">MAC Flood</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">eth2 · 8 400 MACs/s</td>
+            <td style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:33:17</td>
+            <td><span class="badge crit">Activa</span></td>
+          </tr>
+          <tr onclick="selectAlert(this)">
+            <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--amber)">0.71</span></td>
+            <td><span class="badge med">Media</span></td>
+            <td style="font-size:12px;font-weight:500">Escaneo SYN</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">192.168.1.99 → .10</td>
+            <td style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:31:05</td>
+            <td><span class="badge med">Revisando</span></td>
+          </tr>
+          <tr onclick="selectAlert(this)">
+            <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--low)">0.43</span></td>
+            <td><span class="badge low">Baja</span></td>
+            <td style="font-size:12px;font-weight:500">Recon ARP</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">192.168.1.99 → /24</td>
+            <td style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:29:50</td>
+            <td><span class="badge low">Cerrada</span></td>
+          </tr>
+          <tr onclick="selectAlert(this)">
+            <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--low)">0.38</span></td>
+            <td><span class="badge low">Baja</span></td>
+            <td style="font-size:12px;font-weight:500">Recon ARP</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">192.168.1.10 → /24</td>
+            <td style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">14:15:03</td>
+            <td><span class="badge low">Cerrada</span></td>
+          </tr>
+          <tr onclick="selectAlert(this)">
+            <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--low)">0.21</span></td>
+            <td><span class="badge low">Baja</span></td>
+            <td style="font-size:12px;font-weight:500">Tráfico ARP</td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">192.168.1.20 → .1</td>
+            <td style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">13:58:11</td>
+            <td><span class="badge low">Normal</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Panel detalle -->
+    <div class="alertas-detail">
+      <div class="panel-title" style="margin-bottom:16px">Detalle — ARP Spoofing</div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Error de reconstrucción</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+          <span style="font-family:var(--font-mono);font-size:28px;font-weight:500;color:var(--danger)">0.97</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">MSE</span>
+        </div>
+        <div style="height:6px;background:var(--surf3);border-radius:2px;margin-bottom:6px">
+          <div style="height:100%;width:85%;background:var(--danger);border-radius:2px"></div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted)">
+          θ = 0.114 · excedido en <span style="color:var(--danger)">+0.856</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Features L2 (ventana 60 s)</div>
+        <div class="feature-row">
+          <span class="feature-key">arp_rate</span>
+          <span class="feature-val hi">847.2 / s</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">arp_reply_ratio</span>
+          <span class="feature-val hi">0.98</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">unique_src_mac</span>
+          <span class="feature-val md">1</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">unique_dst_ip</span>
+          <span class="feature-val">broadcast</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">mac_ip_changes</span>
+          <span class="feature-val hi">124</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">gratuitous_arp</span>
+          <span class="feature-val hi">116</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">ether_dst_broadcast</span>
+          <span class="feature-val hi">0.99</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">ttl_variance</span>
+          <span class="feature-val">0.0</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">pkt_size_mean</span>
+          <span class="feature-val">42 B</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">inter_arrival_var</span>
+          <span class="feature-val md">1.18 ms</span>
+        </div>
+        <div class="feature-row">
+          <span class="feature-key">src_port_entropy</span>
+          <span class="feature-val">0.0</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Inferencia de amenaza</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          Patrón consistente con <strong style="color:var(--danger)">ARP Cache Poisoning</strong>. Origen <code style="font-family:var(--font-mono);color:var(--text)">aa:bb:cc:11:22:33</code> enviando respuestas ARP no solicitadas a <code style="font-family:var(--font-mono);color:var(--text)">192.168.1.1</code>. Probable intención: MITM.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-danger" style="flex:1;font-size:11px;padding:7px">Bloquear flujo</button>
+        <button class="btn-ghost" style="font-size:11px;padding:7px 12px">Exportar</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /view-alertas -->
+
+
+<!-- ═══════════════════════════════════════
+     PANTALLA 4: LABORATORIO
+     ═══════════════════════════════════════ -->
+<div id="view-lab" class="view">
+
+  <div class="lab-left">
+
+    <div>
+      <div class="panel-title">Seleccionar escenario</div>
+      <div class="scenario-grid">
+        <div class="scenario-btn danger-btn selected" onclick="selectScenario(this,'ARP Spoof',0.97,'#FF4D00')">
+          <div class="scenario-icon">⚡</div>
+          <div class="scenario-name">ARP Spoofing</div>
+          <div class="scenario-desc">Envenenamiento de caché ARP<br>MITM · 192.168.1.99 → .1</div>
+        </div>
+        <div class="scenario-btn" onclick="selectScenario(this,'MAC Flood',0.94,'#FF6B1A')">
+          <div class="scenario-icon">🌊</div>
+          <div class="scenario-name">MAC Flood</div>
+          <div class="scenario-desc">Saturación tabla CAM<br>8 400+ MACs/s · eth2</div>
+        </div>
+        <div class="scenario-btn" onclick="selectScenario(this,'Escaneo SYN',0.71,'#E8A317')">
+          <div class="scenario-icon">🔍</div>
+          <div class="scenario-name">Escaneo de puertos</div>
+          <div class="scenario-desc">SYN scan stealth<br>312 puertos / ventana</div>
+        </div>
+        <div class="scenario-btn" onclick="selectScenario(this,'Recon ARP',0.43,'#8B7355')">
+          <div class="scenario-icon">📡</div>
+          <div class="scenario-name">Recon ARP</div>
+          <div class="scenario-desc">Descubrimiento pasivo<br>ARP who-has · /24</div>
+        </div>
+        <div class="scenario-btn" onclick="selectScenario(this,'Normal',0.08,'#8B7355')" style="grid-column: span 2">
+          <div style="display:flex;gap:16px;align-items:center">
+            <div>
+              <div class="scenario-icon">✓</div>
+            </div>
+            <div>
+              <div class="scenario-name">Tráfico normal</div>
+              <div class="scenario-desc">Baseline ARP estándar · DHCP · comunicación regular · sin anomalías</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controles -->
+    <div class="panel">
+      <div class="panel-title">Calibración de umbral</div>
+      <div class="slider-wrap">
+        <div class="slider-label">
+          <span>Umbral θ — percentil</span>
+          <span class="slider-val" id="theta-display">0.114</span>
+        </div>
+        <input type="range" id="theta-slider" min="70" max="99" value="95"
+               oninput="updateTheta(this.value)">
+        <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--faint)">
+          <span>p70</span><span>p80</span><span>p90</span><span>p95</span><span>p99</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log terminal -->
+    <div>
+      <div class="panel-title">Log de ejecución</div>
+      <div class="terminal" id="lab-terminal" style="height:160px;overflow-y:auto">
+        <div><span class="t-prompt">[14:35:42]</span> <span class="t-info">▸ Escenario cargado: ARP Spoofing</span></div>
+        <div><span class="t-prompt">[14:35:43]</span> <span class="t-info">▸ Generando ventana de 60 s...</span></div>
+        <div><span class="t-prompt">[14:35:44]</span> <span class="t-ok">▸ Features extraídas: arp_rate=847.2 · reply_ratio=0.98 · mac_ip_changes=124</span></div>
+        <div><span class="t-prompt">[14:35:44]</span> <span class="t-ok">▸ Forward pass autoencoder completado</span></div>
+        <div><span class="t-prompt">[14:35:44]</span> <span class="t-err">▸ ERROR reconstrucción MSE=0.9700 › θ=0.114 → ANOMALÍA DETECTADA</span></div>
+        <div><span class="t-prompt">[14:35:44]</span> <span class="t-err">▸ Alerta generada: score=0.97 · severidad=CRÍTICO</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Panel derecho: resultado -->
+  <div class="lab-right">
+    <div>
+      <div class="panel-title">Resultado en vivo</div>
+
+      <div style="text-align:center;padding:16px 0">
+        <div id="lab-detected-label" style="font-family:var(--font-mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--danger);margin-bottom:6px">⚠ ANOMALÍA DETECTADA</div>
+        <div id="lab-score" style="font-family:var(--font-mono);font-size:40px;font-weight:500;color:var(--danger);line-height:1">0.97</div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:4px">Error MSE</div>
+      </div>
+
+      <div class="result-bar-wrap">
+        <div class="result-bar-label">
+          <span>0.00</span>
+          <span>θ = <span id="bar-theta">0.114</span></span>
+          <span>1.00</span>
+        </div>
+        <div class="result-bar-bg">
+          <div class="result-bar-fill" id="lab-bar" style="width:97%;background:var(--danger)"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;padding:10px;background:var(--danger-bg);border:1px solid var(--danger-bd);border-radius:var(--r-panel)">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:var(--danger);margin-bottom:4px">Escenario activo</div>
+        <div id="lab-scenario-name" style="font-size:13px;font-weight:600;color:var(--text)">ARP Spoofing</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto">
+      <button class="btn-primary" onclick="runScenario()">Ejecutar escenario</button>
+      <button class="btn-ghost" onclick="resetLab()">Resetear</button>
+    </div>
+  </div>
+
+</div><!-- /view-lab -->
+
+
+<!-- ═══════════════════════════════════════
+     PANTALLA 5: AGENTE IA
+     ═══════════════════════════════════════ -->
+<div id="view-agente" class="view">
+
+  <div style="display:flex;justify-content:space-between;align-items:baseline">
+    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted)">Agente IA — Gemini BYOK</div>
+    <span style="font-family:var(--font-mono);font-size:10px;color:var(--faint)">gemini-3.1-flash-lite</span>
+  </div>
+
+  <!-- Banner -->
+  <div class="agente-banner">
+    <div class="banner-icon">ℹ</div>
+    <div class="banner-text">
+      <strong>Detección local activa sin API key.</strong> El agente IA requiere tu clave de Google AI Studio para habilitar recomendaciones de calibración y planes de mitigación automáticos. La clave se usa solo en tu navegador y nunca se almacena en servidor.
+    </div>
+  </div>
+
+  <!-- API Key -->
+  <div class="panel" style="padding:18px">
+    <div class="panel-title">Credencial de acceso</div>
+    <div class="agente-key-row">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <input type="password" class="input-field" placeholder="AIzaSy••••••••••••••••••••••••••••••••••" id="api-key-input" style="flex:1">
+      <button class="btn-primary" style="white-space:nowrap;padding:8px 16px" onclick="validateKey()">Validar</button>
+      <button class="btn-ghost" onclick="clearKey()">Borrar</button>
+    </div>
+    <div id="key-status" style="font-family:var(--font-mono);font-size:10px;color:var(--faint);margin-top:8px;padding-left:22px">Sin clave configurada · detección local activa</div>
+  </div>
+
+  <!-- Modo -->
+  <div class="panel" style="padding:18px">
+    <div class="panel-title">Modo de operación</div>
+    <div class="mode-grid">
+      <div class="mode-option active" onclick="setMode(this,'preventivo')">
+        <div class="mode-option-label">
+          <div class="mode-radio"></div>
+          Modo Preventivo
+        </div>
+        <div class="mode-option-desc">Recomienda ajustes de θ antes de que ocurran falsos positivos. Ideal para calibración continua.</div>
+      </div>
+      <div class="mode-option" onclick="setMode(this,'reactivo')">
+        <div class="mode-option-label">
+          <div class="mode-radio"></div>
+          Modo Reactivo
+        </div>
+        <div class="mode-option-desc">Genera planes de mitigación paso a paso tras detectar una anomalía activa.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output del agente -->
+  <div class="agent-output">
+    <div class="agent-output-title">
+      <div class="agent-status-dot"></div>
+      Informe del agente — Modo preventivo
+    </div>
+    <div style="font-size:12px;color:var(--text);line-height:1.7;margin-bottom:16px">
+      <div style="margin-bottom:10px">El modelo ha observado <strong>3 alertas en los últimos 12 min</strong>. La tasa de falsos positivos actual (2.1%) está dentro del rango aceptable, pero el θ actual (0.114, p95) puede ser conservador para el tráfico ARP del segmento actual.</div>
+      <div style="font-weight:600;color:var(--amber);margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:0.10em">Recomendación de calibración</div>
+      <div style="background:var(--surf2);border:1px solid var(--cafe-border);border-left:2px solid var(--amber);padding:12px;border-radius:var(--r-panel);font-family:var(--font-mono);font-size:11px;line-height:1.8;color:var(--muted)">
+        <div>▸ Ajustar θ a <span style="color:var(--amber)">0.142</span> (p97) para reducir FP en horario pico</div>
+        <div>▸ Mantener p95 fuera de horario de oficina</div>
+        <div>▸ Ventana de validación sugerida: próximas <span style="color:var(--text)">4 h</span></div>
+        <div>▸ Riesgo de miss-rate si se aumenta a p99: <span style="color:var(--danger)">+12% FN estimado</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historial de intervenciones -->
+  <div>
+    <div class="panel-title" style="margin-bottom:12px">Historial de intervenciones</div>
+    <div class="intervention-list">
+      <div class="intervention-item">
+        <div class="intervention-ts">14:35:42</div>
+        <div class="intervention-body">
+          <div class="intervention-action">Alerta confirmada: ARP Spoofing crítico</div>
+          <div class="intervention-detail">score=0.97 · bloqueado flujo 4037 · mitigación aplicada</div>
+        </div>
+        <span class="badge crit">Auto</span>
+      </div>
+      <div class="intervention-item">
+        <div class="intervention-ts">14:33:17</div>
+        <div class="intervention-body">
+          <div class="intervention-action">MAC Flood detectado en eth2</div>
+          <div class="intervention-detail">score=0.94 · notificación enviada · pendiente revisión</div>
+        </div>
+        <span class="badge crit">Aviso</span>
+      </div>
+      <div class="intervention-item">
+        <div class="intervention-ts">13:58:00</div>
+        <div class="intervention-body">
+          <div class="intervention-action">Calibración θ automática sugerida</div>
+          <div class="intervention-detail">θ ajustado de 0.108 → 0.114 · FP reducido en 0.4%</div>
+        </div>
+        <span class="badge med">Calibr.</span>
+      </div>
+      <div class="intervention-item">
+        <div class="intervention-ts">12:45:30</div>
+        <div class="intervention-body">
+          <div class="intervention-action">Recon ARP — falso positivo descartado</div>
+          <div class="intervention-detail">score=0.43 · por debajo de umbral operativo</div>
+        </div>
+        <span class="badge low">FP</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /view-agente -->
+
+
+<!-- ═══════════════════════════════════════
+     PANTALLA 6: AJUSTES
+     ═══════════════════════════════════════ -->
+<div id="view-ajustes" class="view">
+
+  <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted)">Configuración del sistema</div>
+
+  <!-- API Gemini -->
+  <div class="panel" style="padding:20px">
+    <div class="panel-title">Credencial Gemini</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <div class="settings-key">API key Gemini</div>
+        <input type="password" class="input-field" placeholder="AIzaSy••••••••••••••••••••••••••" style="max-width:340px">
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Modelo</div>
+        <div class="settings-val readonly">gemini-3.1-flash-lite <span style="color:var(--faint);font-size:10px">(solo lectura)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Autoencoder -->
+  <div class="panel" style="padding:20px">
+    <div class="panel-title">Autoencoder L2</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <div class="settings-key">Arquitectura</div>
+        <div class="arch-diagram">
+          <span class="arch-node">11</span>
+          <span class="arch-arrow">→</span>
+          <span class="arch-node">8</span>
+          <span class="arch-arrow">→</span>
+          <span class="arch-node bottleneck">4</span>
+          <span class="arch-arrow">→</span>
+          <span class="arch-node">8</span>
+          <span class="arch-arrow">→</span>
+          <span class="arch-node">11</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Versión del modelo</div>
+        <div class="settings-val orange">AE · v2.1</div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Umbral θ activo</div>
+        <div class="settings-val orange">0.114 <span style="color:var(--muted);font-size:10px">(percentil 95)</span></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Features de entrada</div>
+        <div class="settings-val" style="font-size:11px">11 features L2 por ventana de 60 s</div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">AUC-ROC</div>
+        <div class="settings-val">0.999 <span style="color:var(--muted);font-size:10px">validación cruzada</span></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Framework</div>
+        <div class="settings-val readonly">PyTorch · CUDA opcional · Python 3.12</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Captura -->
+  <div class="panel" style="padding:20px">
+    <div class="panel-title">Captura de red</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <div class="settings-key">Interfaz</div>
+        <div class="settings-val orange">eth0 <span style="color:var(--muted);font-size:10px">activa · modo promiscuo</span></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Modo</div>
+        <div class="settings-val">Pasivo · solo escucha</div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Ventana</div>
+        <div class="settings-val readonly">60 s · deslizante · sin solapamiento</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Documentación -->
+  <div class="panel" style="padding:20px">
+    <div class="panel-title">Recursos</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <div class="settings-key">Paper del sistema</div>
+        <button class="btn-ghost" style="font-size:11px">Abrir PDF →</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Dataset GNS3</div>
+        <button class="btn-ghost" style="font-size:11px">Ver repositorio →</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-key">Versión ARPegio</div>
+        <div class="settings-val readonly">0.4.2 · build 2026-06-22</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /view-ajustes -->
+
+</div><!-- /shell -->
+
+<script>
+/* ─────────────────────────────────────
+   NAVEGACIÓN
+───────────────────────────────────── */
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+
+  const target = document.getElementById('view-' + viewId);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('[data-view="' + viewId + '"]').forEach(t => {
+    t.classList.add('active');
+  });
+}
+
+document.querySelectorAll('[data-view]').forEach(el => {
+  el.addEventListener('click', () => switchView(el.dataset.view));
+});
+
+/* ─────────────────────────────────────
+   TIMESTAMP
+───────────────────────────────────── */
+function updateTs() {
+  const n = new Date();
+  const p = v => String(v).padStart(2, '0');
+  const str = `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())} · ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+  document.getElementById('nav-ts').textContent = str;
+}
+setInterval(updateTs, 1000);
+updateTs();
+
+/* ─────────────────────────────────────
+   TIMELINE (Red)
+───────────────────────────────────── */
+(function buildTimeline() {
+  const tl = document.getElementById('red-tl');
+  if (!tl) return;
+  const blocks = [
+    {w:6,t:'n'},{w:8,t:'n'},{w:10,t:'n'},{w:7,t:'n'},{w:9,t:'n'},
+    {w:5,t:'n'},{w:8,t:'n'},{w:4,t:'a'},{w:3,t:'n'},{w:7,t:'n'},
+    {w:6,t:'n'},{w:9,t:'n'},{w:5,t:'a'},{w:6,t:'a'},{w:4,t:'n'},
+    {w:7,t:'n'},{w:8,t:'a'},{w:6,t:'a'},{w:5,t:'n'},{w:4,t:'n'}
+  ];
+  const tot = blocks.reduce((s,b) => s + b.w, 0);
+  blocks.forEach(b => {
+    const d = document.createElement('div');
+    d.style.cssText = `flex-basis:${(b.w/tot*100).toFixed(1)}%;height:100%;border-radius:2px;`;
+    if (b.t === 'n') {
+      d.style.background = 'rgba(139,115,85,0.28)';
+    } else {
+      d.style.background = 'rgba(255,77,0,0.45)';
+      d.style.border = '1px solid rgba(255,77,0,0.50)';
+      d.style.boxShadow = '0 0 4px rgba(255,77,0,0.20)';
+    }
+    tl.appendChild(d);
+  });
+})();
+
+/* ─────────────────────────────────────
+   CONTADORES ANIMADOS
+───────────────────────────────────── */
+let pkts = 1284703;
+setInterval(() => {
+  pkts += Math.floor(Math.random() * 100 + 30);
+  const el = document.getElementById('red-pkts');
+  if (el) el.textContent = pkts.toLocaleString('es-ES');
+}, 1200);
+
+/* ─────────────────────────────────────
+   ALERTAS — selección fila
+───────────────────────────────────── */
+function selectAlert(row) {
+  document.querySelectorAll('.siem-table tr').forEach(r => r.classList.remove('selected'));
+  row.classList.add('selected');
+}
+
+/* ─────────────────────────────────────
+   FILTROS
+───────────────────────────────────── */
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const parent = chip.closest('.alertas-filters');
+    parent.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+/* ─────────────────────────────────────
+   LABORATORIO
+───────────────────────────────────── */
+let currentScenario = { name: 'ARP Spoofing', score: 0.97, color: '#FF4D00' };
+
+function selectScenario(btn, name, score, color) {
+  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  currentScenario = { name, score, color };
+  document.getElementById('lab-scenario-name').textContent = name;
+}
+
+function updateTheta(val) {
+  const percentiles = {70:0.072,75:0.085,80:0.096,85:0.105,90:0.114,95:0.134,99:0.186};
+  const p = parseInt(val);
+  let theta = 0.072 + (p - 70) * 0.004;
+  // Approximate
+  if (p <= 70) theta = 0.072;
+  else if (p >= 99) theta = 0.186;
+  else theta = 0.072 + (p - 70) * 0.0038;
+  const t = theta.toFixed(3);
+  document.getElementById('theta-display').textContent = t;
+  document.getElementById('bar-theta').textContent = t;
+}
+
+function runScenario() {
+  const { name, score, color } = currentScenario;
+  const detected = score > 0.114;
+  const bar = document.getElementById('lab-bar');
+  const scoreEl = document.getElementById('lab-score');
+  const label = document.getElementById('lab-detected-label');
+  const terminal = document.getElementById('lab-terminal');
+
+  bar.style.width = (score * 100).toFixed(0) + '%';
+  bar.style.background = color;
+  scoreEl.textContent = score.toFixed(2);
+  scoreEl.style.color = color;
+
+  if (detected) {
+    label.textContent = '⚠ ANOMALÍA DETECTADA';
+    label.style.color = color;
+  } else {
+    label.textContent = '✓ TRÁFICO NORMAL';
+    label.style.color = '#8B7355';
+  }
+
+  const now = new Date();
+  const p = v => String(v).padStart(2, '0');
+  const ts = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+  const line1 = `<div><span class="t-prompt">[${ts}]</span> <span class="t-info">▸ Ejecutando: ${name}</span></div>`;
+  const line2 = `<div><span class="t-prompt">[${ts}]</span> ${detected
+    ? `<span class="t-err">▸ MSE=${score.toFixed(4)} › θ → ANOMALÍA</span>`
+    : `<span class="t-ok">▸ MSE=${score.toFixed(4)} ≤ θ → NORMAL</span>`
+  }</div>`;
+  terminal.innerHTML += line1 + line2;
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function resetLab() {
+  document.getElementById('lab-bar').style.width = '0%';
+  document.getElementById('lab-score').textContent = '—';
+  document.getElementById('lab-detected-label').textContent = 'SIN EJECUCIÓN';
+  document.getElementById('lab-detected-label').style.color = 'var(--faint)';
+  document.getElementById('lab-score').style.color = 'var(--faint)';
+  document.getElementById('lab-terminal').innerHTML =
+    '<div><span class="t-prompt">[sistema]</span> <span class="t-info">▸ Laboratorio reiniciado · listo para nueva ejecución</span></div>';
+}
+
+/* ─────────────────────────────────────
+   AGENTE IA
+───────────────────────────────────── */
+function validateKey() {
+  const key = document.getElementById('api-key-input').value;
+  const status = document.getElementById('key-status');
+  if (key.startsWith('AIza') && key.length > 20) {
+    status.textContent = '✓ Clave válida · agente IA habilitado';
+    status.style.color = '#8B7355';
+  } else {
+    status.textContent = '✗ Formato inválido · debe comenzar con AIza';
+    status.style.color = 'var(--danger)';
+  }
+}
+
+function clearKey() {
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('key-status').textContent = 'Sin clave configurada · detección local activa';
+  document.getElementById('key-status').style.color = 'var(--faint)';
+}
+
+function setMode(el, mode) {
+  document.querySelectorAll('.mode-option').forEach(m => m.classList.remove('active'));
+  el.classList.add('active');
+  const title = document.querySelector('.agent-output-title');
+  if (title) {
+    const dot = title.querySelector('.agent-status-dot');
+    title.innerHTML = '';
+    if (dot) title.appendChild(dot);
+    title.appendChild(document.createTextNode(` Informe del agente — Modo ${mode}`));
+  }
+}
+</script>
+</body>
+</html>

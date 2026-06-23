@@ -1,11 +1,25 @@
-# Detección de Anomalías en Redes LAN (IEEE 802.3)
+# ARPegio — Detección de Anomalías en Redes LAN (IEEE 802.3)
 
-Sistema de detección no supervisada con autoencoder sobre features L2 extraídas de capturas PCAP en laboratorio virtual.
+Sistema de detección no supervisada con autoencoder sobre features L2 extraídas de capturas PCAP en laboratorio virtual. La demo web estática vive en la raíz del repositorio.
+
+## Demo web
+
+```bash
+# Desde la raíz del proyecto
+python -m http.server 8080
+# Abrir http://localhost:8080/
+```
+
+La interfaz incluye seis vistas (Monitor, Red, Alertas, Laboratorio, Agente, Ajustes). El agente Gemini es opcional (BYOK); la detección local se conectará en pasos siguientes.
 
 ## Estructura del proyecto
 
 ```
 Deteccion_Ataques_LAN_IA/
+├── index.html                  # Demo web ARPegio (servir desde raíz)
+├── assets/
+│   ├── css/arpegio.css
+│   └── js/arpegio.js
 ├── config/
 │   └── label_intervals.json    # Ventanas temporales de etiquetado por ataque
 ├── data/
