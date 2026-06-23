@@ -66,7 +66,8 @@ severity, frequency, and node impact to mitigate operator alert fatigue.
 A web-based operational platform (\textit{ARPegio}) integrates these
 components into an analyst-facing workflow comprising monitoring,
 prioritized triage, interactive laboratory replay, and an optional
-AI-assisted agent in preventive and reactive modes. The system is evaluated on traffic captured in a controlled IEEE~802.3
+AI-assisted agent in preventive and reactive modes.
+The system is evaluated on traffic captured in a controlled IEEE~802.3
 LAN emulated with GNS3, comprising four Layer~2 attack families---ARP
 spoofing, MAC flooding, port scanning, and ARP reconnaissance---and
 periods of legitimate baseline traffic. From two victim-side captures,
@@ -110,7 +111,8 @@ e impacto en el nodo para mitigar el \textit{alert fatigue} del operador.
 Una plataforma web de operación (\textit{ARPegio}) integra estos
 componentes en un flujo orientado al analista: monitoreo, \textit{triage}
 priorizado, laboratorio interactivo y un agente de asistencia opcional en
-modos preventivo y reactivo. El sistema se evalúa sobre tráfico capturado en una LAN IEEE~802.3
+modos preventivo y reactivo.
+El sistema se evalúa sobre tráfico capturado en una LAN IEEE~802.3
 controlada emulada con GNS3, que incluye cuatro familias de ataque de
 capa~2---ARP spoofing, MAC flooding, escaneo de puertos y
 reconocimiento ARP---intercaladas con períodos de tráfico legítimo.
@@ -148,7 +150,7 @@ firmas fallan consistentemente frente a vulnerabilidades desconocidas o
 amenazas adaptativas, evidenciando la necesidad de transitar hacia
 enfoques centrados en el comportamiento de la red~\cite{gamage2020}.
 
-A pesar de la urgencia de este problema, persisten dos brechas concretas
+A pesar de la urgencia de este problema, persisten brechas concretas
 en la literatura actual. La primera radica en que los estándares de
 \textit{feature selection} para plataformas NIDS se encuentran
 fuertemente anclados en flujos IP, empleando protocolos como NetFlow en
@@ -162,7 +164,10 @@ soluciones de seguridad existentes diseñadas para la capa~2 requieren
 agentes activos instalados en cada nodo o dependen de vastos conjuntos
 de datos exhaustivamente etiquetados, exigencias técnicas que las hacen
 completamente inviables para su despliegue en entornos institucionales
-reales~\cite{morsy2022,sakhawat2019}.
+reales~\cite{morsy2022,sakhawat2019}. Una tercera brecha operativa
+consiste en la ausencia de interfaces que traduzcan los resultados de
+detección y priorización en flujos de trabajo utilizables por analistas
+de seguridad, más allá de métricas desacopladas del contexto de red.
 
 Por consiguiente, no existe en la actualidad una solución que combine
 simultáneamente cuatro factores fundamentales: una detección no supervisada
@@ -173,7 +178,7 @@ el \textit{alert fatigue} que abruma a los operadores de
 seguridad~\cite{tariq2025}; y una capa de presentación que traduzca esos
 resultados en un flujo operativo accionable para el analista, más allá de
 métricas aisladas o informes estáticos. Frente a esta carencia, este
-proyecto propone un \textit{autoencoder} no supervisado diseñado para
+artículo propone un \textit{autoencoder} no supervisado diseñado para
 aprender un perfil robusto de normalidad del tráfico Ethernet y detectar
 desviaciones significativas, complementado con un motor de priorización
 basado en la severidad, frecuencia e impacto de las anomalías, y con la
@@ -339,7 +344,17 @@ resultados del \textit{pipeline} al analista sin alterar el entrenamiento
 ni la inferencia del modelo. Durante el entrenamiento y la
 calibración del umbral, ninguna etapa consume etiquetas de ataque; las
 etiquetas temporales del \textit{dataset} experimental se reservan
-exclusivamente para la evaluación posterior del rendimiento.
+exclusivamente para la evaluación posterior del rendimiento. La
+Fig.~\ref{fig:pipeline} resume la arquitectura de extremo a extremo.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/pipeline_architecture.png}
+\caption{Arquitectura del sistema: captura pasiva, extracción L2,
+\textit{autoencoder} con calibración de $\theta$, priorización de
+alertas y plataforma de operación \textit{ARPegio}.}
+\label{fig:pipeline}
+\end{figure}
 
 \subsection{Arquitectura del autoencoder}
 La detección de desviaciones conductuales se fundamenta en una
@@ -424,7 +439,7 @@ mezcla realista entre baseline y anomalías observada en operación.
 4 & $\sim$1 min & MAC flooding & \textit{macof} en Kali \\
 5 & $\sim$1 min & Pausa normal & \textit{ping} en Alpine \\
 6 & $\sim$3--5 min & Port scan & \textit{nmap} en Kali \\
-7 & --- & ARP reconnaissance & \textit{arping} en Kali \\
+7 & $\sim$2 min & Reconocimiento ARP & \textit{arping} en Kali \\
 \hline
 \end{tabular}
 \end{table}
@@ -441,8 +456,9 @@ Las dimensiones implementadas son: (i)~tasa de tramas ARP;
 (ii)~ratio \textit{ARP request/reply}; (iii)~entropía de direcciones MAC
 origen; (iv)~conteo de MAC origen y destino
 únicas; (v)~estadísticos de longitud de trama Ethernet
-(media, desviación estándar, mínimo y máximo); y (vi)~ratio de
-tramas broadcast. Esta selección cubre directamente las familias de
+(media, desviación estándar, mínimo y máximo); (vi)~ratio de
+tramas broadcast; y (vii)~conteo total de paquetes por ventana. Esta
+selección cubre directamente las familias de
 ataque evaluadas: el ARP spoofing eleva la tasa ARP con bajo
 \textit{request/reply}; el MAC flooding concentra la entropía MAC
 y el número de direcciones origen únicas; el escaneo de puertos reduce
@@ -603,18 +619,24 @@ PyTorch y \textit{uv} para reproducibilidad. El entrenamiento utiliza
 33 ventanas de \trafonormal{} de la \victimauno; ocho ventanas normales
 restantes de la misma fuente calibran $\theta$ (percentil~95). La
 evaluación se realiza sobre 144 ventanas de la \victimados{} no vistas
-en entrenamiento, con submuestreo de \macflood{} a 116 ventanas
-para equilibrar la comparación por clase, igualando así el número de
-ventanas de la clase dominante al total de ventanas de \trafonormal{}
-disponibles (116). El optimizador empleado es Adam
+en entrenamiento. Dado el desbalance extremo del \textit{dataset}
+completo (795 ventanas de \macflood{} frente a 116 de
+\trafonormal), se aplicó un submuestreo aleatorio de \macflood{} a
+116 ventanas en total---con semilla fija para reproducibilidad---antes
+de separar por fuente de captura. De ese subconjunto, 62 ventanas
+pertenecen a la \victimados{} y forman el bloque de inundación MAC del
+conjunto de prueba, junto con las 75 ventanas normales y las clases
+minoritarias de la misma perspectiva. Así se evita que las métricas
+queden dominadas por la ráfaga de \macflood{} sin renunciar a evaluar
+ataques reales de la captura. El optimizador empleado es Adam
 con tasa de aprendizaje $lr = 1 \times 10^{-3}$, tamaño de lote de 16
 ventanas y 100 épocas de entrenamiento. La ventana deslizante del motor
 de priorización se fijó en $W = 10$. La implementación se organiza en
-tres componentes funcionales: entrenamiento del \textit{autoencoder},
-motor de priorización heurística y emisión de alertas ordenadas. Para exponer
-estos resultados a un operador de seguridad sin depender del entorno de
-entrenamiento, se desarrolló además la plataforma web
-\textit{ARPegio}, descrita en la Sección~V.
+cuatro componentes funcionales: entrenamiento del \textit{autoencoder},
+motor de priorización heurística, emisión de alertas ordenadas y
+plataforma web de operación. El cuarto componente---\textit{ARPegio},
+descrito en la Sección~V---expone métricas, alertas y escenarios de
+laboratorio al analista sin depender del entorno de entrenamiento.
 
 % ---------------------------------------------------------------
 %  V. DISEÑO DE LA PLATAFORMA
@@ -847,72 +869,58 @@ prioridad alta gracias a $s \approx 1$ e impacto $i \geq 0{,}6$. El
 ordenamiento descendente por $P$ permite al operador atender primero
 ráfagas sostenidas de inundación MAC antes que eventos aislados de baja
 severidad, mitigando el \textit{alert fatigue}~\cite{tariq2025}.
+La Tabla~\ref{tab:priorizacion_ejemplo} muestra alertas representativas
+de la \victimados{} con los valores de $s$, $f$, $i$ y $P$ calculados
+por la ecuación~\eqref{eq:priority}.
 
-\subsection{Integración de resultados en la plataforma}
-Los indicadores cuantitativos anteriores no permanecen confinados a
-informes estáticos: la plataforma \textit{ARPegio} los traduce a una
-superficie operativa coherente con el flujo de trabajo de un SOC. La
-vista \textbf{Monitor} reproduce de forma inmediata el AUC-ROC de
-0{,}998, el umbral $\theta$ calibrado, el volumen de alertas y la tasa
-de falsos positivos del 4\%, junto con un histograma que visualiza la
-misma separabilidad entre tráfico normal y ataques discutida en la
-Fig.~\ref{fig:errors}. Un control interactivo de percentiles permite al
-analista explorar, sin reentrenar el modelo, cómo varían los conteos
-TN/FP/FN/TP al desplazar $\theta$---capacidad especialmente relevante
-para negociar el compromiso entre sensibilidad y ruido operativo en
-entornos con escasa muestra de validación.
+\begin{table}[htbp]
+\caption{Ejemplo de priorización de alertas (\victimados, $\theta=0{,}114$, $W=10$)}
+\label{tab:priorizacion_ejemplo}
+\centering
+\renewcommand{\arraystretch}{1.12}
+\footnotesize
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{cllcccc}
+\hline
+\textbf{\#} & \textbf{Amenaza inferida} & \textbf{Etiqueta real} & $\boldsymbol{s}$ & $\boldsymbol{f}$ & $\boldsymbol{i}$ & $\boldsymbol{P}$ \\
+\hline
+1 & MAC flood & MAC flood & 1.00 & 1.00 & 1.0 & 1.00 \\
+2 & MAC flood & MAC flood & 1.00 & 0.90 & 1.0 & 0.97 \\
+3 & ARP spoof & ARP spoof & 1.00 & 0.30 & 0.9 & 0.77 \\
+4 & Recon. ARP & Recon. ARP & 1.00 & 0.10 & 0.6 & 0.65 \\
+5 & Desconocida & Normal (FP) & 1.00 & 0.10 & 0.5 & 0.63 \\
+\hline
+\end{tabular}%
+}
+\end{table}
 
-La vista \textbf{Alertas} materializa el ordenamiento del motor de
-priorización: las 71 ventanas anómalas de la \victimados{} aparecen
-clasificadas por puntaje $P$, con filtros por severidad y familia de
-ataque. Las tres alertas de mayor prioridad se destacan también en
-\textbf{Monitor} como acceso directo al \textit{triage}, replicando la
-lógica con la que un operador abordaría primero las ráfagas de
-\macflood{} ($P=1{,}0$) frente a eventos ARP de menor persistencia.
-La vista \textbf{Red} sitúa cada ventana en la topología GNS3 y en la
-línea temporal de la sesión, ofreciendo contexto espacial y cronológico
-que las métricas agregadas no capturan por sí solas. En conjunto, estas
-vistas validan que el \textit{pipeline} experimental es interpretable
-más allá de tablas y curvas de entrenamiento (Figs.~\ref{fig:platform_monitor}
-y~\ref{fig:platform_alerts}).
+Las filas 1--2 ilustran una ráfaga sostenida de \macflood{} con
+$f \rightarrow 1$. La fila 3 corresponde a \arpspoof{} con menor
+persistencia ($f=0{,}3$) pero impacto elevado ($i=0{,}9$). La fila 5
+documenta un falso positivo sobre \trafonormal{} cuya prioridad
+relativamente alta ($P=0{,}63$) refleja severidad máxima pese a baja
+frecuencia e impacto moderado.
 
-\subsection{Validación interactiva y asistencia al operador}
-La vista \textbf{Laboratorio} constituye el segundo eje de validación de
-la plataforma: en lugar de consumir pasivamente los resultados del
-\textit{replay} offline, el analista ejecuta la inferencia del
-\textit{autoencoder} sobre escenarios reales de la captura y compara el
-error de reconstrucción frente a distintos percentiles de $\theta$. Este
-mecanismo reproduce en el cliente la decisión binaria normal/anomalía y
-hace tangible el caso de \portscan{} no detectado desde la
-\victimados: la interfaz documenta el falso negativo como limitación
-del punto de observación, no como omisión del tablero. La
-Fig.~\ref{fig:platform_lab} ilustra este enfoque de validación
-transparente.
-
-El módulo \textbf{Agente} cierra el ciclo con asistencia cognitiva en
-dos modos complementarios. En régimen \textbf{preventivo}, orienta la
-calibración de $\theta$, el análisis de falsos positivos y la
-planificación pre-incidente; en régimen \textbf{reactivo}, propone
-secuencias de contención L2 y comandos de verificación tras una alerta.
-Los informes estructurados sintetizan veredicto, confianza, umbral
-sugerido y acciones priorizadas, mientras el diálogo de seguimiento
-permite refinar hipótesis---por ejemplo, contrastar el efecto de un
-percentil más conservador sobre los falsos positivos observados. Los
-accesos contextuales desde \textbf{Monitor}, \textbf{Alertas} y
-\textbf{Laboratorio} reducen la fricción entre detección, priorización
-e interpretación. La Fig.~\ref{fig:platform_agent} muestra este flujo en
-modo reactivo. La vista \textbf{Ajustes} concentra la configuración del
-agente y los metadatos del modelo para auditoría reproducible
-(Fig.~\ref{fig:platform_settings}).
-
-Desde una perspectiva de usabilidad, la plataforma demuestra que los
-resultados del experimento GNS3 pueden transferirse a un entorno
-accesible vía Web sin sacrificar la trazabilidad del modelo: cada
-indicador mostrado deriva del mismo umbral, la misma arquitectura
-$11 \to 8 \to 4 \to 8 \to 11$ y la misma cola priorizada evaluada en
-esta sección. El despliegue público facilita la revisión por pares del
-comportamiento operativo del sistema, más allá de la lectura de métricas
-aisladas.
+\subsection{Validación operativa de la plataforma}
+Los resultados cuantitativos anteriores se contrastan en la interfaz
+descrita en la Sección~V. La vista \textbf{Monitor} reproduce el
+AUC-ROC de 0{,}999, el umbral $\theta$ calibrado, el volumen de alertas
+y la tasa de falsos positivos del 4\%, junto con un histograma
+equivalente a la Fig.~\ref{fig:errors}; un control de percentiles permite
+explorar el trade-off TN/FP/FN/TP sin reentrenar. La vista
+\textbf{Alertas} ordena las 71 ventanas anómalas por puntaje $P$ y
+destaca las tres de mayor prioridad, coherente con el comportamiento del
+motor de priorización (\macflood{} con $P=1{,}0$ frente a eventos ARP
+menos persistentes). La vista \textbf{Laboratorio} reproduce la decisión
+binaria del \textit{autoencoder} en el cliente y documenta de forma
+explícita el falso negativo de \portscan{} desde la \victimados{}
+(Fig.~\ref{fig:platform_lab}). El módulo \textbf{Agente} complementa
+esta validación con asistencia preventiva y reactiva, accesible de forma
+contextual desde las demás vistas (Figs.~\ref{fig:platform_monitor},
+\ref{fig:platform_alerts} y~\ref{fig:platform_agent}). En conjunto, la
+plataforma confirma que las métricas del experimento son trazables y
+accionables para el analista, sin sustituir la evaluación estadística
+de las subsecciones precedentes.
 
 \subsection{Limitaciones}
 El tamaño reducido de clases minoritarias (\arpspoof,
@@ -943,7 +951,7 @@ extracción de 11 \textit{features} Ethernet nativas, entrenamiento no
 supervisado con \textit{autoencoder} y calibración estadística del umbral
 sin muestras de ataque. Sobre tráfico de la \victimados{} no visto en
 entrenamiento, el sistema alcanzó 97\% de exactitud binaria y AUC-ROC de
-0.998, detectando por completo \macflood, \arpspoof{} y
+0{,}999, detectando por completo \macflood, \arpspoof{} y
 \arprecon---si bien \arpspoof{} y \arprecon{}
 cuentan con muestras de prueba reducidas ($n=3$ cada una)---, con una
 tasa de falsos positivos del 4\% sobre tráfico normal.
