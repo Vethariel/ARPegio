@@ -217,6 +217,24 @@ def main():
     print(f"Curva:    {loss_path}")
     print(f"Errores:  {err_path}")
 
+    try:
+        import sys
+
+        scripts_dir = Path(__file__).resolve().parent
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        from export_onnx import export_onnx
+
+        onnx_result = export_onnx()
+        print(f"ONNX:     {onnx_result['onnx']}")
+        print(f"Scaler:   {onnx_result['scaler']}")
+        print(
+            f"Paridad:  max |Δ| = {onnx_result['parity']['max_abs_diff']:.2e}"
+        )
+    except Exception as exc:
+        print(f"\nAdvertencia: export ONNX falló ({exc}).")
+        print("Ejecuta: uv run python scripts/export_onnx.py")
+
 
 if __name__ == "__main__":
     main()

@@ -26,54 +26,36 @@ function updateTs() {
   const n = new Date();
   const p = v => String(v).padStart(2, '0');
   const str = `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())} · ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
-  document.getElementById('nav-ts').textContent = str;
+  const el = document.getElementById('nav-ts');
+  if (el) el.textContent = str;
 }
 setInterval(updateTs, 1000);
 updateTs();
 
 /* ─────────────────────────────────────
-   TIMELINE (Red)
+   ESTADO ALERTAS
 ───────────────────────────────────── */
-(function buildTimeline() {
-  const tl = document.getElementById('red-tl');
-  if (!tl) return;
-  const blocks = [
-    {w:6,t:'n'},{w:8,t:'n'},{w:10,t:'n'},{w:7,t:'n'},{w:9,t:'n'},
-    {w:5,t:'n'},{w:8,t:'n'},{w:4,t:'a'},{w:3,t:'n'},{w:7,t:'n'},
-    {w:6,t:'n'},{w:9,t:'n'},{w:5,t:'a'},{w:6,t:'a'},{w:4,t:'n'},
-    {w:7,t:'n'},{w:8,t:'a'},{w:6,t:'a'},{w:5,t:'n'},{w:4,t:'n'}
-  ];
-  const tot = blocks.reduce((s,b) => s + b.w, 0);
-  blocks.forEach(b => {
-    const d = document.createElement('div');
-    d.style.cssText = `flex-basis:${(b.w/tot*100).toFixed(1)}%;height:100%;border-radius:2px;`;
-    if (b.t === 'n') {
-      d.style.background = 'rgba(139,115,85,0.28)';
-    } else {
-      d.style.background = 'rgba(255,77,0,0.45)';
-      d.style.border = '1px solid rgba(255,77,0,0.50)';
-      d.style.boxShadow = '0 0 4px rgba(255,77,0,0.20)';
-    }
-    tl.appendChild(d);
-  });
-})();
+let filteredAlerts = [];
+let currentFilter = 'Todas';
+let selectedAlertIndex = 0;
 
-/* ─────────────────────────────────────
-   CONTADORES ANIMADOS
-───────────────────────────────────── */
-let pkts = 1284703;
-setInterval(() => {
-  pkts += Math.floor(Math.random() * 100 + 30);
-  const el = document.getElementById('red-pkts');
-  if (el) el.textContent = pkts.toLocaleString('es-ES');
-}, 1200);
-
-/* ─────────────────────────────────────
-   ALERTAS — selección fila
-───────────────────────────────────── */
-function selectAlert(row) {
-  document.querySelectorAll('.siem-table tr').forEach(r => r.classList.remove('selected'));
+function selectAlertRow(row, idx) {
+  document.querySelectorAll('.siem-table tbody tr').forEach(r => r.classList.remove('selected'));
   row.classList.add('selected');
+  selectedAlertIndex = idx;
+  ArpegioRender.renderAlertDetail(filteredAlerts[idx]);
+}
+
+function applyAlertFilter(name) {
+  currentFilter = name;
+  filteredAlerts = ArpegioData.filterAlerts(name);
+  selectedAlertIndex = 0;
+  ArpegioRender.renderAlertTable(filteredAlerts, 0);
+  if (filteredAlerts.length) {
+    ArpegioRender.renderAlertDetail(filteredAlerts[0]);
+    const first = document.querySelector('#alerts-tbody tr');
+    if (first) first.classList.add('selected');
+  }
 }
 
 /* ─────────────────────────────────────
@@ -84,13 +66,24 @@ document.querySelectorAll('.filter-chip').forEach(chip => {
     const parent = chip.closest('.alertas-filters');
     parent.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
+    applyAlertFilter(chip.textContent.trim());
   });
 });
 
 /* ─────────────────────────────────────
-   LABORATORIO
+   LABORATORIO — ventanas reales
 ───────────────────────────────────── */
-let currentScenario = { name: 'ARP Spoofing', score: 0.97, color: '#FF4D00' };
+let currentScenario = null;
+
+function getActiveTheta() {
+  const slider = document.getElementById("theta-slider");
+  const idx = slider ? parseInt(slider.value, 10) : ArpegioData.getSliderIndexForPercentile(95);
+  return ArpegioData.getThetaForPercentile(ArpegioData.getPercentileFromSliderIndex(idx));
+}
+
+function getThreshold() {
+  return getActiveTheta();
+}
 
 function setLabLabel(iconName, text, stateClass) {
   const label = document.getElementById('lab-detected-label');
@@ -117,101 +110,313 @@ function setKeyStatus(iconName, text, color) {
   status.innerHTML = ArpegioIcons.icon(iconName, { size: 12 }) + `<span>${text}</span>`;
 }
 
-function selectScenario(btn, name, score, color) {
-  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  currentScenario = { name, score, color };
-  document.getElementById('lab-scenario-name').textContent = name;
+function selectScenario(btn, scenarioId) {
+  const scenario = ArpegioData.getLabScenario(scenarioId);
+  if (!scenario) return;
+
+  document.querySelectorAll(".scenario-btn").forEach((b) => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  currentScenario = scenario;
+
+  document.getElementById("lab-scenario-name").textContent = scenario.display_name;
+  const descEl = document.getElementById("lab-scenario-desc");
+  if (descEl) {
+    descEl.textContent = scenario.note
+      ? `${scenario.description} — ${scenario.note}`
+      : scenario.description;
+    descEl.style.color = scenario.note ? "var(--amber)" : "var(--muted)";
+  }
+  const timeEl = document.getElementById("lab-scenario-time");
+  if (timeEl) {
+    const ws = ArpegioData.getState().labScenarios?.window_size || 50;
+    timeEl.textContent = `Ventana ${ws} tramas · ${scenario.source} · ${ArpegioData.fmtTime(scenario.t_start)} · label ${scenario.label}`;
+  }
 }
 
 function updateTheta(val) {
-  const percentiles = {70:0.072,75:0.085,80:0.096,85:0.105,90:0.114,95:0.134,99:0.186};
-  const p = parseInt(val);
-  let theta = 0.072 + (p - 70) * 0.004;
-  // Approximate
-  if (p <= 70) theta = 0.072;
-  else if (p >= 99) theta = 0.186;
-  else theta = 0.072 + (p - 70) * 0.0038;
-  const t = theta.toFixed(3);
-  document.getElementById('theta-display').textContent = t;
-  document.getElementById('bar-theta').textContent = t;
+  const idx = parseInt(val, 10);
+  const p = ArpegioData.getPercentileFromSliderIndex(idx);
+  ArpegioRender.renderLabTheta(p);
 }
 
-function runScenario() {
-  const { name, score, color } = currentScenario;
-  const detected = score > 0.114;
-  const bar = document.getElementById('lab-bar');
-  const scoreEl = document.getElementById('lab-score');
-  const label = document.getElementById('lab-detected-label');
-  const terminal = document.getElementById('lab-terminal');
+async function runScenario() {
+  if (!currentScenario) return;
 
-  bar.style.width = (score * 100).toFixed(0) + '%';
-  bar.style.background = color;
-  scoreEl.textContent = score.toFixed(2);
+  const runBtn = document.querySelector("#view-lab .btn-primary");
+  if (runBtn) runBtn.disabled = true;
+
+  const scenario = currentScenario;
+  const terminal = document.getElementById("lab-terminal");
+  const ts = ArpegioData.fmtTime(scenario.t_start);
+  const ws = ArpegioData.getState().labScenarios?.window_size || 50;
+  const pipelineMse = scenario.reconstruction_error;
+
+  terminal.innerHTML += [
+    termLine(ts, `Cargando ventana real: ${scenario.display_name} (${scenario.label})`, "info"),
+    termLine(ts, `Extrayendo ${ws} tramas de ${scenario.source} → features L2`, "info"),
+    termLine(ts, ArpegioData.formatLabFeatureSummary(scenario.features), "ok"),
+  ].join("");
+  terminal.scrollTop = terminal.scrollHeight;
+
+  let score;
+  let usedFallback = false;
+  try {
+    if (!ArpegioInference.isReady()) {
+      terminal.innerHTML += termLine("[sistema]", "Cargando modelo ONNX…", "info");
+      terminal.scrollTop = terminal.scrollHeight;
+      await ArpegioInference.load();
+      ArpegioInference.setStatusBadge();
+    }
+    terminal.innerHTML += termLine(ts, "Forward pass autoencoder (ONNX Runtime Web · WASM)", "ok");
+    terminal.scrollTop = terminal.scrollHeight;
+    score = await ArpegioInference.score(scenario.features);
+  } catch (err) {
+    usedFallback = true;
+    score = pipelineMse;
+    terminal.innerHTML += termLine(
+      "[error]",
+      `Inferencia ONNX falló (${err.message}) · usando MSE del pipeline offline`,
+      "err"
+    );
+  }
+
+  const theta = getActiveTheta();
+  const detected = score > theta;
+  const color = detected ? "var(--danger)" : "#8B7355";
+  const barMax =
+    parseFloat(document.getElementById("lab-bar-max")?.textContent) ||
+    Math.max(score, theta * 2, 1.5);
+
+  const bar = document.getElementById("lab-bar");
+  const scoreEl = document.getElementById("lab-score");
+  const label = document.getElementById("lab-detected-label");
+
+  bar.style.width = Math.min(100, (score / barMax) * 100).toFixed(0) + "%";
+  bar.style.background = detected ? scenario.color : "#8B7355";
+  scoreEl.textContent = ArpegioData.fmtScore(score);
   scoreEl.style.color = color;
 
   if (detected) {
-    setLabLabel('alert-triangle', 'ANOMALÍA DETECTADA', 'is-alert');
-    label.style.color = color;
+    setLabLabel("alert-triangle", "ANOMALÍA DETECTADA", "is-alert");
+    label.style.color = scenario.color;
   } else {
-    setLabLabel('check-circle', 'TRÁFICO NORMAL', 'is-ok');
-    label.style.color = '#8B7355';
+    setLabLabel("check-circle", "TRÁFICO NORMAL", "is-ok");
+    label.style.color = "#8B7355";
   }
 
-  const now = new Date();
-  const p = v => String(v).padStart(2, '0');
-  const ts = `[${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}]`;
-  const line1 = termLine(ts, `Ejecutando: ${name}`, 'info');
-  const line2 = termLine(
-    ts,
-    detected
-      ? `MSE=${score.toFixed(4)} › θ → ANOMALÍA`
-      : `MSE=${score.toFixed(4)} ≤ θ → NORMAL`,
-    detected ? 'err' : 'ok'
+  const p = ArpegioData.getPercentileFromSliderIndex(
+    parseInt(document.getElementById("theta-slider")?.value || "5", 10)
   );
-  terminal.innerHTML += line1 + line2;
+
+  const lines = [
+    termLine(
+      ts,
+      detected
+        ? `MSE=${score.toFixed(4)} > θ=${ArpegioData.fmtTheta(theta)} (p${p}) → ANOMALÍA`
+        : `MSE=${score.toFixed(4)} ≤ θ=${ArpegioData.fmtTheta(theta)} (p${p}) → NORMAL`,
+      detected ? "err" : "ok"
+    ),
+  ];
+
+  if (!usedFallback) {
+    const drift = Math.abs(score - pipelineMse);
+    lines.push(
+      termLine(
+        ts,
+        `Paridad pipeline: navegador=${score.toFixed(6)} · offline=${pipelineMse.toFixed(6)} · Δ=${drift.toExponential(2)}`,
+        drift < 1e-3 ? "ok" : "info"
+      )
+    );
+  }
+
+  if (scenario.note && !detected) {
+    lines.push(termLine(ts, scenario.note, "info"));
+  } else if (detected) {
+    lines.push(
+      termLine(ts, `Etiqueta ground-truth: ${scenario.label} · decisión coherente con el lab`, "info")
+    );
+  }
+
+  terminal.innerHTML += lines.join("");
   terminal.scrollTop = terminal.scrollHeight;
+  if (runBtn) runBtn.disabled = false;
 }
 
 function resetLab() {
-  document.getElementById('lab-bar').style.width = '0%';
-  document.getElementById('lab-score').textContent = '—';
-  const label = document.getElementById('lab-detected-label');
-  setLabLabel(null, 'SIN EJECUCIÓN', 'is-idle');
-  if (label) label.style.color = '';
-  document.getElementById('lab-score').style.color = 'var(--faint)';
-  document.getElementById('lab-terminal').innerHTML =
-    termLine('[sistema]', 'Laboratorio reiniciado · listo para nueva ejecución', 'info');
+  document.getElementById("lab-bar").style.width = "0%";
+  document.getElementById("lab-bar").style.background = "var(--danger)";
+  document.getElementById("lab-score").textContent = "—";
+  const label = document.getElementById("lab-detected-label");
+  setLabLabel(null, "SIN EJECUCIÓN", "is-idle");
+  if (label) label.style.color = "";
+  document.getElementById("lab-score").style.color = "var(--faint)";
+  document.getElementById("lab-terminal").innerHTML = termLine(
+    "[sistema]",
+    "Selecciona un escenario y pulsa Ejecutar · inferencia ONNX en el navegador",
+    "info"
+  );
+}
+
+function initLab(labScenarios) {
+  if (!labScenarios) return;
+  const firstId = ArpegioRender.renderLab(labScenarios);
+  resetLab();
+  if (firstId) {
+    const btn = document.querySelector(`[data-scenario-id="${firstId}"]`);
+    if (btn) selectScenario(btn, firstId);
+  }
 }
 
 /* ─────────────────────────────────────
    AGENTE IA
 ───────────────────────────────────── */
+let agentMode = "preventivo";
+
 function validateKey() {
-  const key = document.getElementById('api-key-input').value;
-  if (key.startsWith('AIza') && key.length > 20) {
-    setKeyStatus('check', 'Clave válida · agente IA habilitado', '#8B7355');
+  const key = document.getElementById("api-key-input")?.value?.trim() || "";
+  ArpegioGemini.syncInputs(document.getElementById("api-key-input")?.value || "");
+  if (key) {
+    ArpegioGemini.setApiKey(key);
+    setKeyStatus("check", "API key guardada · lista para Gemini", "#8B7355");
   } else {
-    setKeyStatus('x', 'Formato inválido · debe comenzar con AIza', 'var(--danger)');
+    ArpegioGemini.clearApiKey();
+    setKeyStatus("x", "La API key no puede estar vacía", "var(--danger)");
   }
 }
 
 function clearKey() {
-  document.getElementById('api-key-input').value = '';
-  const status = document.getElementById('key-status');
-  status.className = '';
-  status.textContent = 'Sin clave configurada · detección local activa';
-  status.style.color = 'var(--faint)';
+  document.getElementById("api-key-input").value = "";
+  const settings = document.getElementById("settings-api-key-input");
+  if (settings) settings.value = "";
+  ArpegioGemini.clearApiKey();
+  const status = document.getElementById("key-status");
+  status.className = "";
+  status.textContent = "Sin clave configurada · detección local activa";
+  status.style.color = "var(--faint)";
+  const out = document.getElementById("agent-gemini-output");
+  if (out) {
+    out.textContent = "Configura tu API key y pulsa «Generar informe». La clave solo se usa en este navegador.";
+  }
+  ArpegioGemini.setAgentDot("idle");
 }
 
 function setMode(el, mode) {
-  document.querySelectorAll('.mode-option').forEach(m => m.classList.remove('active'));
-  el.classList.add('active');
-  const title = document.querySelector('.agent-output-title');
+  agentMode = mode;
+  document.querySelectorAll(".mode-option").forEach((m) => m.classList.remove("active"));
+  el.classList.add("active");
+  const title = document.querySelector(".agent-output-title");
   if (title) {
-    const dot = title.querySelector('.agent-status-dot');
-    title.innerHTML = '';
+    const dot = title.querySelector(".agent-status-dot");
+    title.innerHTML = "";
     if (dot) title.appendChild(dot);
     title.appendChild(document.createTextNode(` Informe del agente — Modo ${mode}`));
   }
 }
+
+async function runAgent() {
+  const keyInput = document.getElementById("api-key-input");
+  const key = (keyInput?.value || ArpegioGemini.getApiKeyFromInputs() || "").trim();
+  if (!key) {
+    setKeyStatus("x", "La API key no puede estar vacía", "var(--danger)");
+    keyInput?.focus();
+    return;
+  }
+
+  ArpegioGemini.setApiKey(key);
+  ArpegioGemini.syncInputs(keyInput?.value || key);
+
+  const btn = document.getElementById("btn-agent-generate");
+  const out = document.getElementById("agent-gemini-output");
+  if (!out) return;
+
+  if (btn) btn.disabled = true;
+  out.textContent = "Consultando Gemini…";
+  ArpegioGemini.setAgentDot("loading");
+
+  try {
+    const state = ArpegioData.getState();
+    const alert = filteredAlerts[selectedAlertIndex] || filteredAlerts[0] || null;
+    if (agentMode === "reactivo" && !alert) {
+      throw new Error("No hay alertas en el replay para generar un plan reactivo");
+    }
+    const text = await ArpegioGemini.generate(agentMode, state, alert);
+    ArpegioGemini.renderIntoElement(out, text);
+    setKeyStatus("check", "Informe generado · API key activa", "#8B7355");
+    ArpegioGemini.setAgentDot("ready");
+  } catch (err) {
+    console.error(err);
+    out.textContent = err.message;
+    ArpegioGemini.setAgentDot("error");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function syncAgentKeyFromSettings() {
+  const settings = document.getElementById("settings-api-key-input");
+  const main = document.getElementById("api-key-input");
+  if (settings && main && settings.value && !main.value) {
+    main.value = settings.value;
+    ArpegioGemini.setApiKey(settings.value.trim());
+  }
+}
+
+/* ─────────────────────────────────────
+   INICIALIZACIÓN — datos reales
+───────────────────────────────────── */
+function exportCurrentAlert() {
+  const alert = filteredAlerts[selectedAlertIndex];
+  if (alert) ArpegioData.exportAlertJSON(alert);
+}
+
+async function initArpegio() {
+  const banner = document.getElementById('data-load-error');
+  ArpegioGemini.init();
+  ArpegioInference.setStatusBadge();
+  ArpegioInference.load().then(() => ArpegioInference.setStatusBadge());
+  try {
+    const { metrics, alerts, windowScores, labelConfig, labScenarios } = await ArpegioData.load();
+
+    ArpegioRender.renderNav(metrics);
+    ArpegioRender.renderMonitor(metrics, alerts, windowScores);
+    ArpegioRender.renderSettings(metrics, labelConfig);
+    ArpegioRender.renderAgentSummary(metrics, alerts);
+    ArpegioRender.renderAgentCalibrations(metrics, labScenarios);
+    ArpegioRender.renderAgentReplayLog(alerts);
+    ArpegioRender.renderTimeline(labelConfig);
+    ArpegioRender.renderNetwork(alerts, metrics);
+    initLab(labScenarios);
+
+    filteredAlerts = alerts;
+    ArpegioRender.renderAlertTable(alerts, 0);
+    if (alerts.length) {
+      ArpegioRender.renderAlertDetail(alerts[0]);
+    }
+
+    const exportBtn = document.getElementById('btn-export-csv');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => ArpegioData.exportAlertsCSV());
+    }
+    const exportAlertBtn = document.getElementById('btn-export-alert');
+    if (exportAlertBtn) {
+      exportAlertBtn.addEventListener('click', exportCurrentAlert);
+    }
+
+    const settingsKey = document.getElementById('settings-api-key-input');
+    if (settingsKey) {
+      settingsKey.addEventListener('change', syncAgentKeyFromSettings);
+    }
+    if (ArpegioGemini.hasApiKey()) {
+      setKeyStatus('check', 'API key en sesión · lista para Gemini', '#8B7355');
+    }
+  } catch (err) {
+    console.error(err);
+    if (banner) banner.hidden = false;
+    const msg = document.createElement('div');
+    msg.className = 'data-error-banner';
+    msg.textContent = `No se pudieron cargar los datos del pipeline. Ejecuta prioritize_alerts.py y sirve la app desde la raíz del repo. (${err.message})`;
+    document.querySelector('.shell')?.prepend(msg);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initArpegio);

@@ -1,0 +1,1157 @@
+{
+  "threshold": 0.11372725665569305,
+  "windows": [
+    {
+      "reconstruction_error": 0.025166185572743416,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423017.858514,
+      "t_end": 1781423029.859662,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04289449751377106,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423030.689871,
+      "t_end": 1781423042.692908,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014223014935851097,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423042.859957,
+      "t_end": 1781423054.693309,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014223014935851097,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423054.860514,
+      "t_end": 1781423066.694012,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04289449751377106,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423066.861208,
+      "t_end": 1781423078.861698,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04289449751377106,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423079.692154,
+      "t_end": 1781423091.695406,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014223014935851097,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423091.862458,
+      "t_end": 1781423103.6958,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014223014935851097,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423103.862929,
+      "t_end": 1781423115.696333,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04289449751377106,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423115.863692,
+      "t_end": 1781423127.863964,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014223014935851097,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423128.694658,
+      "t_end": 1781423139.864492,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.10237221419811249,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423140.695201,
+      "t_end": 1781423152.696152,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014764183200895786,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423152.698583,
+      "t_end": 1781423164.696379,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423164.698712,
+      "t_end": 1781423176.866101,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014223014935851097,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423176.86619,
+      "t_end": 1781423188.866651,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.17982713878154755,
+      "label": "arp_spoof",
+      "is_anomaly": true,
+      "t_start": 1781423188.866703,
+      "t_end": 1781423327.626634,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 4.351081848144531,
+      "label": "arp_spoof",
+      "is_anomaly": true,
+      "t_start": 1781423329.626738,
+      "t_end": 1781423427.636951,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.3954834938049316,
+      "label": "arp_spoof",
+      "is_anomaly": true,
+      "t_start": 1781423429.637478,
+      "t_end": 1781423500.903596,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423500.906101,
+      "t_end": 1781423513.153131,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.025166327133774757,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423513.153201,
+      "t_end": 1781423524.904755,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423524.907142,
+      "t_end": 1781423537.154084,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423537.154174,
+      "t_end": 1781423549.906013,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.34726187586784363,
+      "label": "normal",
+      "is_anomaly": true,
+      "t_start": 1781423549.908276,
+      "t_end": 1781423581.800777,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.3531162440776825,
+      "label": "normal",
+      "is_anomaly": true,
+      "t_start": 1781423584.349734,
+      "t_end": 1781423644.185873,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423644.187092,
+      "t_end": 1781423656.507048,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423656.507099,
+      "t_end": 1781423669.187225,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423669.188412,
+      "t_end": 1781423681.508369,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.025166327133774757,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781423681.508422,
+      "t_end": 1781423693.18837,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.05562606081366539,
+      "label": "port_scan",
+      "is_anomaly": false,
+      "t_start": 1781423693.189908,
+      "t_end": 1781424226.135481,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424226.535906,
+      "t_end": 1781424235.746569,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424236.14715,
+      "t_end": 1781424245.758189,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424246.15858,
+      "t_end": 1781424255.769874,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424256.170265,
+      "t_end": 1781424265.381126,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424265.781682,
+      "t_end": 1781424275.392922,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424275.512157,
+      "t_end": 1781424285.004192,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424285.404601,
+      "t_end": 1781424295.015868,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424295.040773,
+      "t_end": 1781424304.62697,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424305.027392,
+      "t_end": 1781424314.638685,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424315.038903,
+      "t_end": 1781424324.24961,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424324.650144,
+      "t_end": 1781424333.860529,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424334.261022,
+      "t_end": 1781424343.872135,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424344.272579,
+      "t_end": 1781424353.483293,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424353.883582,
+      "t_end": 1781424363.494764,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424363.89517,
+      "t_end": 1781424373.105884,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424373.506368,
+      "t_end": 1781424382.716633,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424383.116983,
+      "t_end": 1781424392.727056,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424393.127317,
+      "t_end": 1781424402.738265,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.05648193508386612,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424403.138671,
+      "t_end": 1781424412.217468,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424412.3495,
+      "t_end": 1781424421.960264,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424422.360754,
+      "t_end": 1781424431.971825,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424432.372068,
+      "t_end": 1781424441.582935,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424441.983395,
+      "t_end": 1781424451.194719,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424451.595103,
+      "t_end": 1781424461.206519,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424461.606922,
+      "t_end": 1781424471.097464,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424471.218159,
+      "t_end": 1781424480.428931,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424480.829304,
+      "t_end": 1781424490.440372,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424490.84073,
+      "t_end": 1781424500.28139,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424500.45214,
+      "t_end": 1781424510.063373,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424510.463766,
+      "t_end": 1781424519.674817,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424520.075285,
+      "t_end": 1781424529.686791,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.05648193508386612,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424529.976161,
+      "t_end": 1781424538.89775,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424539.298128,
+      "t_end": 1781424548.909649,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424549.310057,
+      "t_end": 1781424558.921602,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.05648193508386612,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424559.160142,
+      "t_end": 1781424568.13193,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424568.532419,
+      "t_end": 1781424578.143753,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424578.544091,
+      "t_end": 1781424587.755202,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424588.155647,
+      "t_end": 1781424597.366889,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.039981164038181305,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424597.767244,
+      "t_end": 1781424607.378676,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04237004369497299,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424607.7791,
+      "t_end": 1781424616.990028,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.14257396757602692,
+      "label": "normal",
+      "is_anomaly": true,
+      "t_start": 1781424617.390436,
+      "t_end": 1781424655.944925,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042072393000125885,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424655.944978,
+      "t_end": 1781424671.763239,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.041045043617486954,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424671.763307,
+      "t_end": 1781424692.585799,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.05568674951791763,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424692.585869,
+      "t_end": 1781424712.606861,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.03462383523583412,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424713.407632,
+      "t_end": 1781424732.627815,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.07529223710298538,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424732.62788,
+      "t_end": 1781424867.568904,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.025166185572743416,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424867.570356,
+      "t_end": 1781424879.569486,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424879.570701,
+      "t_end": 1781424892.370701,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.014223014935851097,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424892.370755,
+      "t_end": 1781424904.37137,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.042904336005449295,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424904.371445,
+      "t_end": 1781424916.571252,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 0.04075615108013153,
+      "label": "normal",
+      "is_anomaly": false,
+      "t_start": 1781424916.572464,
+      "t_end": 1781424954.001322,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 251.73944091796875,
+      "label": "arp_recon",
+      "is_anomaly": true,
+      "t_start": 1781424955.002276,
+      "t_end": 1781425047.696217,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 9.63667106628418,
+      "label": "arp_recon",
+      "is_anomaly": true,
+      "t_start": 1781425047.696271,
+      "t_end": 1781425072.722627,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 9.46959400177002,
+      "label": "arp_recon",
+      "is_anomaly": true,
+      "t_start": 1781425072.722683,
+      "t_end": 1781425096.748563,
+      "total_packets": 49
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.722961,
+      "t_end": 1781423583.729045,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.544191,
+      "t_end": 1781423583.548551,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.650032,
+      "t_end": 1781423582.658381,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.054681,
+      "t_end": 1781423584.05842,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.670976,
+      "t_end": 1781423583.67541,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.811637,
+      "t_end": 1781423582.823824,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.326708,
+      "t_end": 1781423583.32717,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.374615,
+      "t_end": 1781423583.378711,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.346888,
+      "t_end": 1781423583.355172,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.02022,
+      "t_end": 1781423584.026873,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.458872,
+      "t_end": 1781423583.46563,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423581.832406,
+      "t_end": 1781423581.838327,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.658389,
+      "t_end": 1781423582.662784,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.280502,
+      "t_end": 1781423583.325255,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.865555,
+      "t_end": 1781423583.871814,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.386192,
+      "t_end": 1781423583.390228,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.144605,
+      "t_end": 1781423583.149589,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.188786,
+      "t_end": 1781423584.1978,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.727294,
+      "t_end": 1781423582.73567,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.401002,
+      "t_end": 1781423583.409332,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.523922,
+      "t_end": 1781423583.531754,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.322411,
+      "t_end": 1781423584.330221,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.675417,
+      "t_end": 1781423583.685782,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.111017,
+      "t_end": 1781423583.120352,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.597784,
+      "t_end": 1781423582.604345,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423581.920433,
+      "t_end": 1781423581.923516,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423581.978535,
+      "t_end": 1781423581.989091,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.591632,
+      "t_end": 1781423583.598348,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.056352,
+      "t_end": 1781423582.066458,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.222881,
+      "t_end": 1781423584.230764,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.081457,
+      "t_end": 1781423583.08782,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.078911,
+      "t_end": 1781423584.087179,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.356049,
+      "t_end": 1781423582.371281,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.238062,
+      "t_end": 1781423582.243124,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.477623,
+      "t_end": 1781423583.481051,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.186858,
+      "t_end": 1781423582.194233,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.759434,
+      "t_end": 1781423582.769934,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.905427,
+      "t_end": 1781423582.914695,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.735678,
+      "t_end": 1781423582.740068,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.31827,
+      "t_end": 1781423584.322401,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.996894,
+      "t_end": 1781423583.002448,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.914713,
+      "t_end": 1781423582.918166,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.71257,
+      "t_end": 1781423583.719688,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.065717,
+      "t_end": 1781423584.073945,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.955657,
+      "t_end": 1781423583.959212,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.974703,
+      "t_end": 1781423582.988157,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.255461,
+      "t_end": 1781423584.262254,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.16828,
+      "t_end": 1781423582.175952,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.831486,
+      "t_end": 1781423583.835304,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.27327,
+      "t_end": 1781423582.284301,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.262267,
+      "t_end": 1781423584.270697,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.332193,
+      "t_end": 1781423583.335505,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.193313,
+      "t_end": 1781423583.200136,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.311292,
+      "t_end": 1781423584.318248,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.662793,
+      "t_end": 1781423582.672318,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.034191,
+      "t_end": 1781423584.038138,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.025895,
+      "t_end": 1781423582.035374,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423584.118387,
+      "t_end": 1781423584.124226,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.965226,
+      "t_end": 1781423583.968809,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423581.929542,
+      "t_end": 1781423581.933529,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423582.105919,
+      "t_end": 1781423582.112811,
+      "total_packets": 50
+    },
+    {
+      "reconstruction_error": 1.203987956047058,
+      "label": "mac_flood",
+      "is_anomaly": true,
+      "t_start": 1781423583.862358,
+      "t_end": 1781423583.865546,
+      "total_packets": 50
+    }
+  ]
+}

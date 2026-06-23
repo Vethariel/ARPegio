@@ -10,7 +10,7 @@ python -m http.server 8080
 # Abrir http://localhost:8080/
 ```
 
-La interfaz incluye seis vistas (Monitor, Red, Alertas, Laboratorio, Agente, Ajustes). El agente Gemini es opcional (BYOK); la detección local se conectará en pasos siguientes.
+La interfaz incluye seis vistas (Monitor, Red, Alertas, Laboratorio, Agente, Ajustes). Al cargar, la demo lee `results/metrics.json`, `results/alerts_prioritized.csv`, `results/window_scores.json` y `results/lab_scenarios.json` (generar con `prioritize_alerts.py`). En **Laboratorio**, el autoencoder se ejecuta en el navegador con ONNX Runtime Web. En **Agente**, puedes usar tu API key de [Google AI Studio](https://aistudio.google.com/app/apikey) (BYOK) para informes preventivos o reactivos con contexto del pipeline; la clave solo se envía desde tu navegador a la API de Gemini.
 
 ## Estructura del proyecto
 
@@ -19,7 +19,13 @@ Deteccion_Ataques_LAN_IA/
 ├── index.html                  # Demo web ARPegio (servir desde raíz)
 ├── assets/
 │   ├── css/arpegio.css
-│   └── js/arpegio.js
+│   └── js/
+│       ├── icons.js
+│       ├── data.js             # carga JSON/CSV del pipeline
+│       ├── render.js           # render dinámico de vistas
+│       ├── inference.js        # inferencia ONNX en navegador
+│       ├── gemini-agent.js     # agente Gemini BYOK
+│       └── arpegio.js
 ├── config/
 │   └── label_intervals.json    # Ventanas temporales de etiquetado por ataque
 ├── data/
@@ -33,10 +39,11 @@ Deteccion_Ataques_LAN_IA/
 ├── scripts/
 │   ├── extract_features.py     # Extracción L2 con Scapy
 │   ├── train_autoencoder.py    # Entrenamiento AE + umbral
+│   ├── export_onnx.py          # Exporta ONNX + scaler.json para el navegador
 │   ├── prioritizer.py          # Motor de priorización (severidad/frecuencia/impacto)
 │   └── prioritize_alerts.py    # Genera alertas ordenadas en results/
-├── models/                     # autoencoder.pt, scaler.pkl, threshold.npy
-├── results/                    # metrics.json, training_loss.png, alerts_prioritized.csv
+├── models/                     # autoencoder.pt, autoencoder.onnx, scaler.pkl, scaler.json
+├── results/                    # metrics.json, window_scores.json, lab_scenarios.json, alerts_prioritized.csv
 ├── pyproject.toml
 └── uv.lock
 ```
@@ -55,8 +62,11 @@ uv sync
 # Extraer features L2 desde PCAPs y generar CSV etiquetado
 uv run python scripts/extract_features.py
 
-# Entrenar autoencoder (GPU CUDA si está disponible)
+# Entrenar autoencoder (GPU CUDA si está disponible; exporta ONNX automáticamente)
 uv run python scripts/train_autoencoder.py
+
+# Exportar ONNX manualmente si hace falta regenerar sin reentrenar
+uv run python scripts/export_onnx.py
 
 # Priorizar alertas sobre victima2
 uv run python scripts/prioritize_alerts.py
@@ -91,4 +101,5 @@ entrada para generar alertas ordenadas es `scripts/prioritize_alerts.py`
 - [x] Entrenar autoencoder (solo tráfico normal)
 - [x] Calibrar umbral estadístico (percentil 95)
 - [x] Motor de priorización de alertas
-- [ ] Agente IA: modos preventivo y reactivo
+- [x] Inferencia del autoencoder en navegador (ONNX Runtime Web)
+- [x] Agente IA: modos preventivo y reactivo (Gemini BYOK)
