@@ -378,6 +378,10 @@ body::after {
   cursor: pointer;
   transition: border-color .15s, color .15s;
 }
+a.btn-ghost {
+  display: inline-block;
+  text-decoration: none;
+}
 .btn-ghost:hover {
   border-color: var(--copper);
   color: var(--text);

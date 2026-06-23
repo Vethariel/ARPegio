@@ -26,9 +26,8 @@
 
 \begin{document}
 
-\title{Sistema de Detección de Anomalías en Redes LAN IEEE~802.3
-mediante Aprendizaje No Supervisado y Perfilado
-de Comportamiento del Tráfico}
+\title{ARPegio: Detección No Supervisada de Anomalías L2 en LAN
+IEEE~802.3 con Priorización de Alertas}
 
 \author{
   \IEEEauthorblockN{Daniel Alonso Gracia Pinto}
@@ -64,20 +63,25 @@ any labeled data. A statistical threshold calibration mechanism controls
 the false-positive rate without requiring attack samples, and an
 automatic alert prioritization engine ranks detected anomalies by
 severity, frequency, and node impact to mitigate operator alert fatigue.
-The system is evaluated on traffic captured in a controlled IEEE~802.3
+A web-based operational platform (\textit{ARPegio}) integrates these
+components into an analyst-facing workflow comprising monitoring,
+prioritized triage, interactive laboratory replay, and an optional
+AI-assisted agent in preventive and reactive modes. The system is evaluated on traffic captured in a controlled IEEE~802.3
 LAN emulated with GNS3, comprising four Layer~2 attack families---ARP
 spoofing, MAC flooding, port scanning, and ARP reconnaissance---and
 periods of legitimate baseline traffic. From two victim-side captures,
 959 temporal windows of native Ethernet features were extracted and
 labeled for evaluation; model training uses normal traffic only.
 Results demonstrate the viability of passive, label-free monitoring for
-proactive IEEE~802.3 LAN cybersecurity, and highlight the open research
-gap in Layer~2-anchored unsupervised network intrusion detection.
+proactive IEEE~802.3 LAN cybersecurity, the operational usability of an
+integrated analyst platform, and highlight the open research gap in
+Layer~2-anchored unsupervised network intrusion detection.
 \end{abstract}
 
 \begin{IEEEkeywords}
 Anomaly detection, unsupervised learning, autoencoder, IEEE~802.3,
-Ethernet, ARP spoofing, NIDS, alert prioritization, Layer~2 security.
+Ethernet, ARP spoofing, NIDS, alert prioritization, decision support,
+Layer~2 security.
 \end{IEEEkeywords}
 
 % ---------------------------------------------------------------
@@ -103,7 +107,10 @@ calibración estadística del umbral controla la tasa de falsos positivos
 sin necesidad de muestras de ataque, y un motor automático de priorización
 de alertas clasifica las anomalías detectadas según severidad, frecuencia
 e impacto en el nodo para mitigar el \textit{alert fatigue} del operador.
-El sistema se evalúa sobre tráfico capturado en una LAN IEEE~802.3
+Una plataforma web de operación (\textit{ARPegio}) integra estos
+componentes en un flujo orientado al analista: monitoreo, \textit{triage}
+priorizado, laboratorio interactivo y un agente de asistencia opcional en
+modos preventivo y reactivo. El sistema se evalúa sobre tráfico capturado en una LAN IEEE~802.3
 controlada emulada con GNS3, que incluye cuatro familias de ataque de
 capa~2---ARP spoofing, MAC flooding, escaneo de puertos y
 reconocimiento ARP---intercaladas con períodos de tráfico legítimo.
@@ -111,7 +118,8 @@ A partir de dos capturas en nodos víctima se extrajeron 959 ventanas
 temporales de \textit{features} Ethernet nativas, etiquetadas
 únicamente para evaluación; el entrenamiento emplea solo tráfico normal.
 Los resultados demuestran la viabilidad del monitoreo pasivo sin etiquetas
-para la ciberseguridad proactiva de redes LAN IEEE~802.3, e identifican
+para la ciberseguridad proactiva de redes LAN IEEE~802.3, la utilidad
+operativa de una plataforma integrada para el analista, e identifican
 la brecha de investigación abierta en detección no supervisada anclada
 en capa~2 Ethernet.
 \end{abstract}
@@ -120,7 +128,7 @@ en capa~2 Ethernet.
 \begin{IEEEkeywords}
 Detección de anomalías, aprendizaje no supervisado, \textit{autoencoder},
 IEEE~802.3, Ethernet, ARP spoofing, NIDS, priorización de alertas,
-seguridad en capa~2.
+soporte a la decisión, seguridad en capa~2.
 \end{IEEEkeywords}
 \end{otherlanguage}
 
@@ -157,17 +165,20 @@ completamente inviables para su despliegue en entornos institucionales
 reales~\cite{morsy2022,sakhawat2019}.
 
 Por consiguiente, no existe en la actualidad una solución que combine
-simultáneamente tres factores fundamentales: una detección no supervisada
+simultáneamente cuatro factores fundamentales: una detección no supervisada
 anclada en la capa~2 IEEE~802.3; un monitoreo verdaderamente pasivo y
 sin agentes que entrene su modelo utilizando únicamente el tráfico normal
-de la red; y un motor automático que clasifique las amenazas para reducir
+de la red; un motor automático que clasifique las amenazas para reducir
 el \textit{alert fatigue} que abruma a los operadores de
-seguridad~\cite{tariq2025}. Frente a esta carencia, este proyecto propone
-un \textit{autoencoder} no supervisado diseñado para aprender un perfil
-robusto de normalidad del tráfico Ethernet y detectar desviaciones
-significativas, complementado con un motor de priorización basado en la
-severidad, frecuencia e impacto de las anomalías. La elección de un
-método no supervisado se justifica en la realidad operativa: en una LAN
+seguridad~\cite{tariq2025}; y una capa de presentación que traduzca esos
+resultados en un flujo operativo accionable para el analista, más allá de
+métricas aisladas o informes estáticos. Frente a esta carencia, este
+proyecto propone un \textit{autoencoder} no supervisado diseñado para
+aprender un perfil robusto de normalidad del tráfico Ethernet y detectar
+desviaciones significativas, complementado con un motor de priorización
+basado en la severidad, frecuencia e impacto de las anomalías, y con la
+plataforma \textit{ARPegio} como interfaz de operación y validación. La
+elección de un método no supervisado se justifica en la realidad operativa: en una LAN
 institucional, etiquetar todas las variaciones de tráfico malicioso es
 una tarea inviable. Si bien la literatura reconoce que los métodos
 supervisados suelen igualar o superar el rendimiento de los no
@@ -176,16 +187,21 @@ supervisado no se plantea aquí como superior en abstracto, sino como la
 única alternativa técnica viable frente a la ausencia absoluta de
 etiquetas en este escenario real~\cite{gamage2020}.
 
-En respuesta a estas limitaciones, el presente artículo introduce tres
+En respuesta a estas limitaciones, el presente artículo introduce cuatro
 contribuciones específicas. Primero, se plantea una arquitectura de
 monitoreo pasivo que captura tramas Ethernet en un punto de visibilidad
 del segmento LAN---análogo a un puerto espejo (\textit{SPAN})---sin
-requerir agentes en los nodos víctima. Segundo, se desarrolla un modelo de detección de
-anomalías no supervisado fundamentado en un \textit{autoencoder}, el
-cual emplea una calibración de umbral estadística sin depender de datos
+requerir agentes en los nodos víctima. Segundo, se desarrolla un modelo de
+detección de anomalías no supervisado fundamentado en un \textit{autoencoder},
+el cual emplea una calibración de umbral estadística sin depender de datos
 etiquetados. Tercero, se integra un motor de priorización automático de
 alertas configurado según la severidad, frecuencia y el nivel de impacto
-en el nodo afectado. El diseño propuesto se fundamenta en criterios
+en el nodo afectado. Cuarto, se diseña e implementa la plataforma web
+\textit{ARPegio}, que articula monitoreo, \textit{triage} priorizado,
+laboratorio interactivo con inferencia en el cliente y asistencia del
+operador mediante un agente conversacional en modos preventivo y
+reactivo, cerrando el ciclo entre la evaluación experimental y la decisión
+en el SOC. El diseño propuesto se fundamenta en criterios
 estrictos que guían toda la metodología: la resiliencia ante la
 manipulación adversaria para evitar la evasión del
 modelo~\cite{he2023}, la viabilidad computacional para operar ágilmente
@@ -193,8 +209,9 @@ en entornos reales~\cite{injadat2021}, y la reproducibilidad basada en
 el rigor experimental~\cite{yang2022}. El resto del artículo se organiza
 de la siguiente manera: la Sección~II revisa los trabajos relacionados;
 la Sección~III describe la metodología propuesta; la Sección~IV detalla
-la configuración experimental; la Sección~V presenta y discute los
-resultados; y la Sección~VI concluye el trabajo.
+la configuración experimental; la Sección~V presenta el diseño de la
+plataforma web de operación; la Sección~VI expone y discute los
+resultados; y la Sección~VII concluye el trabajo.
 
 % ---------------------------------------------------------------
 %  II. TRABAJOS RELACIONADOS
@@ -294,9 +311,11 @@ de forma aislada o asumiendo infraestructuras fuertemente supervisadas o
 intervenidas. La brecha específica que ningún trabajo previo llena, y que
 esta investigación resuelve integralmente, es la consolidación de un
 sistema NIDS para redes IEEE~802.3 que opere de forma puramente no
-supervisada, sin requerir agentes en los nodos, y que integre de forma
+supervisada, sin requerir agentes en los nodos, que integre de forma
 nativa un motor de priorización automático para garantizar la viabilidad
-operativa en entornos reales.
+operativa en entornos reales, y que disponga de una plataforma de
+operación que haga interpretables y accionables sus resultados para el
+analista de seguridad.
 
 % ---------------------------------------------------------------
 %  III. METODOLOGÍA
@@ -314,7 +333,10 @@ Posteriormente, la tercera etapa detecta las desviaciones mediante un
 modelo \textit{autoencoder} de aprendizaje no supervisado. Finalmente,
 la cuarta fase procesa estos eventos a través de un motor de
 priorización automática de alertas, evaluadas según su severidad,
-frecuencia e impacto en el nodo. Durante el entrenamiento y la
+frecuencia e impacto en el nodo. Una quinta capa de operación---la
+plataforma \textit{ARPegio} descrita en la Sección~V---expone los
+resultados del \textit{pipeline} al analista sin alterar el entrenamiento
+ni la inferencia del modelo. Durante el entrenamiento y la
 calibración del umbral, ninguna etapa consume etiquetas de ataque; las
 etiquetas temporales del \textit{dataset} experimental se reservan
 exclusivamente para la evaluación posterior del rendimiento.
@@ -589,10 +611,155 @@ con tasa de aprendizaje $lr = 1 \times 10^{-3}$, tamaño de lote de 16
 ventanas y 100 épocas de entrenamiento. La ventana deslizante del motor
 de priorización se fijó en $W = 10$. La implementación se organiza en
 tres componentes funcionales: entrenamiento del \textit{autoencoder},
-motor de priorización heurística y emisión de alertas ordenadas.
+motor de priorización heurística y emisión de alertas ordenadas. Para exponer
+estos resultados a un operador de seguridad sin depender del entorno de
+entrenamiento, se desarrolló además la plataforma web
+\textit{ARPegio}, descrita en la Sección~V.
 
 % ---------------------------------------------------------------
-%  V. RESULTADOS Y DISCUSIÓN
+%  V. DISEÑO DE LA PLATAFORMA
+% ---------------------------------------------------------------
+\section{Diseño de la Plataforma}
+
+Para trasladar el \textit{pipeline} de detección L2 a un entorno
+operativo comprensible por analistas, se implementó \textit{ARPegio}, una
+aplicación web estática que incorpora las métricas de evaluación, la cola
+de alertas priorizadas, los puntajes por ventana y los escenarios de
+laboratorio producidos por el entrenamiento y la priorización. La
+interfaz no reimplementa el entrenamiento ni la extracción de
+\textit{features}: actúa como capa de visualización, \textit{triage} y
+experimentación que cierra el ciclo entre la evaluación offline y la
+toma de decisiones del SOC. La demo pública se despliega en la Web
+\footnote{\url{https://vethariel.github.io/ARPegio/}}, lo que
+permite reproducir la experiencia sin instalar componentes de inferencia
+en el servidor.
+
+\subsection{Arquitectura de la interfaz}
+La plataforma se organiza en seis vistas navegables desde una barra
+lateral persistente: \textbf{Monitor}, \textbf{Red}, \textbf{Alertas},
+\textbf{Laboratorio}, \textbf{Agente} y \textbf{Ajustes}. Al iniciar,
+la aplicación carga los resultados del \textit{pipeline} y deriva
+métricas agregadas---AUC-ROC, umbral $\theta$, matriz de confusión por
+percentil y resúmenes de alertas---que alimentan la interfaz dinámica.
+Esta separación entre el procesamiento experimental del modelo y la capa
+de presentación mantiene el rigor del entrenamiento mientras ofrece
+interactividad al operador. La Fig.~\ref{fig:platform_monitor} ilustra la
+vista \textbf{Monitor}, punto de entrada del tablero operativo.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/vistamonitor.png}
+\caption{Vista Monitor: indicadores del \textit{pipeline}, distribución
+del error de reconstrucción y exploración de percentiles de $\theta$.}
+\label{fig:platform_monitor}
+\end{figure}
+
+\subsection{Monitoreo, red y cola de alertas}
+La vista \textbf{Monitor} resume el estado del modelo tras el
+\textit{replay} offline de la \victimados: AUC-ROC, número de alertas,
+tasa de falsos positivos y un histograma que contrasta el error MSE
+con la etiqueta real de laboratorio (no con la predicción del modelo).
+Un control deslizante permite simular distintos percentiles de $\theta$
+y observar el trade-off TN/FP/FN/TP sin reentrenar.
+
+La vista \textbf{Red} representa la topología GNS3 del segmento
+192.168.1.0/24---nodos víctima Alpine, nodo atacante Kali y
+conmutador OVS---junto con una línea temporal de ventanas etiquetadas
+de la sesión experimental. La Fig.~\ref{fig:platform_network}
+corresponde a este módulo de contexto espacio-temporal.
+
+La vista \textbf{Alertas} materializa la salida del motor de
+priorización: tabla ordenada por puntaje $P$, filtros por severidad y
+familia de ataque, y panel de detalle con el vector de \textit{features}
+L2 de la ventana seleccionada. Las tres alertas de mayor prioridad se
+destacan también en \textbf{Monitor} como punto de entrada al
+\textit{triage}. La Fig.~\ref{fig:platform_alerts} muestra la cola
+priorizada y el detalle de una ventana.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/topologiared.png}
+\caption{Vista Red: topología del laboratorio y secuencia temporal de
+ventanas etiquetadas.}
+\label{fig:platform_network}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/alertas.png}
+\caption{Vista Alertas: cola priorizada, filtros operativos y detalle
+de la ventana seleccionada.}
+\label{fig:platform_alerts}
+\end{figure}
+
+\subsection{Laboratorio interactivo con inferencia en el cliente}
+La vista \textbf{Laboratorio} reproduce escenarios reales de la
+captura---\arpspoof, \macflood, \portscan, \arprecon{} y tráfico
+\trafonormal---mediante inferencia del \textit{autoencoder} en el
+navegador. El modelo exportado se ejecuta íntegramente en el cliente,
+sin enviar tráfico ni vectores de \textit{features} a un servidor
+remoto. Un control de percentiles recalcula $\theta$ al vuelo y compara
+el MSE reconstruido frente al umbral elegido; el escenario de
+\portscan{} permanece documentado como caso de falso negativo honesto
+cuando el punto de observación no captura la señal dominante. La
+Fig.~\ref{fig:platform_lab} resume esta capacidad de validación
+interactiva.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/laboratorio.png}
+\caption{Vista Laboratorio: \textit{replay} de escenarios reales con
+inferencia en el navegador y calibración interactiva de $\theta$.}
+\label{fig:platform_lab}
+\end{figure}
+
+\subsection{Agente de asistencia y configuración}
+La vista \textbf{Agente} integra un copiloto conversacional con modelo
+de lenguaje (\textit{bring your own key}): la credencial permanece en
+el navegador del operador y no transita por el servidor de la demo. Se
+distinguen dos modos de operación:
+\textbf{preventivo}---calibración de $\theta$, análisis de falsos
+positivos y checklist pre-incidente---y
+\textbf{reactivo}---planes de contención L2 y comandos sugeridos para el
+laboratorio tras una alerta. El agente emite informes estructurados con
+veredicto, nivel de confianza, recomendación de umbral, escenario de
+laboratorio sugerido, acciones priorizadas y comandos de verificación.
+Además, puede simular distintos percentiles de $\theta$, consultar
+alertas individuales, listar la cola priorizada y recuperar el perfil
+de escenarios del laboratorio a partir del estado vigente del sistema. Un
+diálogo de seguimiento permite refinar las respuestas; la interfaz
+presenta notación matemática y comandos de forma legible para el
+operador. Accesos contextuales desde \textbf{Monitor}, \textbf{Alertas}
+y \textbf{Laboratorio} abren el agente con la situación ya cargada. La
+ejecución remota de mitigaciones en GNS3 no está automatizada: el agente
+asiste al operador, pero la contención sigue siendo manual. La
+Fig.~\ref{fig:platform_agent} muestra el flujo de informe en modo
+reactivo.
+
+La vista \textbf{Ajustes} centraliza la credencial del agente,
+parámetros de modelo de solo lectura (arquitectura $11 \to 8 \to 4 \to 8 \to 11$,
+AUC, $\theta$ activo) y acceso a la documentación del proyecto y a las
+capturas del laboratorio. La Fig.~\ref{fig:platform_settings} corresponde
+a este panel.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/agente.png}
+\caption{Vista Agente: modos preventivo y reactivo, informe estructurado
+y diálogo de seguimiento con consulta al estado del sistema.}
+\label{fig:platform_agent}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{figs/ajustes.png}
+\caption{Vista Ajustes: configuración del agente, metadatos del
+\textit{autoencoder} y acceso a documentación del proyecto.}
+\label{fig:platform_settings}
+\end{figure}
+
+% ---------------------------------------------------------------
+%  VI. RESULTADOS Y DISCUSIÓN
 % ---------------------------------------------------------------
 \section{Resultados y Discusión}
 
@@ -681,19 +848,95 @@ ordenamiento descendente por $P$ permite al operador atender primero
 ráfagas sostenidas de inundación MAC antes que eventos aislados de baja
 severidad, mitigando el \textit{alert fatigue}~\cite{tariq2025}.
 
+\subsection{Integración de resultados en la plataforma}
+Los indicadores cuantitativos anteriores no permanecen confinados a
+informes estáticos: la plataforma \textit{ARPegio} los traduce a una
+superficie operativa coherente con el flujo de trabajo de un SOC. La
+vista \textbf{Monitor} reproduce de forma inmediata el AUC-ROC de
+0{,}998, el umbral $\theta$ calibrado, el volumen de alertas y la tasa
+de falsos positivos del 4\%, junto con un histograma que visualiza la
+misma separabilidad entre tráfico normal y ataques discutida en la
+Fig.~\ref{fig:errors}. Un control interactivo de percentiles permite al
+analista explorar, sin reentrenar el modelo, cómo varían los conteos
+TN/FP/FN/TP al desplazar $\theta$---capacidad especialmente relevante
+para negociar el compromiso entre sensibilidad y ruido operativo en
+entornos con escasa muestra de validación.
+
+La vista \textbf{Alertas} materializa el ordenamiento del motor de
+priorización: las 71 ventanas anómalas de la \victimados{} aparecen
+clasificadas por puntaje $P$, con filtros por severidad y familia de
+ataque. Las tres alertas de mayor prioridad se destacan también en
+\textbf{Monitor} como acceso directo al \textit{triage}, replicando la
+lógica con la que un operador abordaría primero las ráfagas de
+\macflood{} ($P=1{,}0$) frente a eventos ARP de menor persistencia.
+La vista \textbf{Red} sitúa cada ventana en la topología GNS3 y en la
+línea temporal de la sesión, ofreciendo contexto espacial y cronológico
+que las métricas agregadas no capturan por sí solas. En conjunto, estas
+vistas validan que el \textit{pipeline} experimental es interpretable
+más allá de tablas y curvas de entrenamiento (Figs.~\ref{fig:platform_monitor}
+y~\ref{fig:platform_alerts}).
+
+\subsection{Validación interactiva y asistencia al operador}
+La vista \textbf{Laboratorio} constituye el segundo eje de validación de
+la plataforma: en lugar de consumir pasivamente los resultados del
+\textit{replay} offline, el analista ejecuta la inferencia del
+\textit{autoencoder} sobre escenarios reales de la captura y compara el
+error de reconstrucción frente a distintos percentiles de $\theta$. Este
+mecanismo reproduce en el cliente la decisión binaria normal/anomalía y
+hace tangible el caso de \portscan{} no detectado desde la
+\victimados: la interfaz documenta el falso negativo como limitación
+del punto de observación, no como omisión del tablero. La
+Fig.~\ref{fig:platform_lab} ilustra este enfoque de validación
+transparente.
+
+El módulo \textbf{Agente} cierra el ciclo con asistencia cognitiva en
+dos modos complementarios. En régimen \textbf{preventivo}, orienta la
+calibración de $\theta$, el análisis de falsos positivos y la
+planificación pre-incidente; en régimen \textbf{reactivo}, propone
+secuencias de contención L2 y comandos de verificación tras una alerta.
+Los informes estructurados sintetizan veredicto, confianza, umbral
+sugerido y acciones priorizadas, mientras el diálogo de seguimiento
+permite refinar hipótesis---por ejemplo, contrastar el efecto de un
+percentil más conservador sobre los falsos positivos observados. Los
+accesos contextuales desde \textbf{Monitor}, \textbf{Alertas} y
+\textbf{Laboratorio} reducen la fricción entre detección, priorización
+e interpretación. La Fig.~\ref{fig:platform_agent} muestra este flujo en
+modo reactivo. La vista \textbf{Ajustes} concentra la configuración del
+agente y los metadatos del modelo para auditoría reproducible
+(Fig.~\ref{fig:platform_settings}).
+
+Desde una perspectiva de usabilidad, la plataforma demuestra que los
+resultados del experimento GNS3 pueden transferirse a un entorno
+accesible vía Web sin sacrificar la trazabilidad del modelo: cada
+indicador mostrado deriva del mismo umbral, la misma arquitectura
+$11 \to 8 \to 4 \to 8 \to 11$ y la misma cola priorizada evaluada en
+esta sección. El despliegue público facilita la revisión por pares del
+comportamiento operativo del sistema, más allá de la lectura de métricas
+aisladas.
+
 \subsection{Limitaciones}
 El tamaño reducido de clases minoritarias (\arpspoof,
 \arprecon{} y \portscan) limita la generalización
 estadística. La validación cruzada por víctima (\victimauno{} $\to$
 \victimados) demuestra transferencia entre perspectivas de captura,
 pero no sustituye un despliegue en producción con mayor diversidad
-topológica. La integración del agente de mitigación (modos preventivo y
-reactivo) queda como extensión futura del \textit{pipeline}.
+topológica.
+
+En el plano de la plataforma, la inferencia en el navegador y la carga
+estática de resultados del \textit{pipeline} la orientan hacia demostración,
+capacitación y \textit{triage} sobre capturas ya procesadas, no hacia
+monitoreo en tiempo real de alto caudal. El agente de asistencia opera
+con credencial aportada por el operador y no ejecuta mitigaciones de
+forma autónoma en el laboratorio: su valor reside en la interpretación y
+la propuesta de acciones, no en la orquestación remota de contención. La
+integración con flujos SOC empresariales (SIEM, \textit{ticketing},
+autenticación institucional) permanece como trabajo pendiente.
 
 % ---------------------------------------------------------------
-%  VI. CONCLUSIONES
+%  VII. CONCLUSIONES
 % ---------------------------------------------------------------
 \section{Conclusiones}
+
 Este trabajo consolidó un \textit{pipeline} reproducible de detección de
 anomalías L2 en redes LAN IEEE~802.3: captura pasiva en laboratorio GNS3,
 extracción de 11 \textit{features} Ethernet nativas, entrenamiento no
@@ -705,16 +948,39 @@ entrenamiento, el sistema alcanzó 97\% de exactitud binaria y AUC-ROC de
 cuentan con muestras de prueba reducidas ($n=3$ cada una)---, con una
 tasa de falsos positivos del 4\% sobre tráfico normal.
 
-La tercera contribución---motor de priorización por severidad, frecuencia
-e impacto---cierra el ciclo operativo al ordenar 71 alertas sin
-intervención humana ni etiquetas en inferencia. Los hallazgos confirman
-que el monitoreo pasivo anclado en tramas IEEE~802.3 es viable para
-alertar tempranamente sobre ataques de suplantación y saturación en LAN
-institucionales simuladas. Como líneas futuras se identifican: ampliar
-capturas para \portscan{} y clases minoritarias, desplegar el
-agente de mitigación con IA generativa, y validar el motor de
-priorización con roles heterogéneos (servidor/cliente/IoT) en topologías
-más amplias.
+La integración de un motor de priorización por severidad, frecuencia e
+impacto ordenó 71 alertas sin intervención humana ni etiquetas en
+inferencia, demostrando que el \textit{alert fatigue} puede mitigarse
+incluso con un subconjunto acotado de validación. Más allá del núcleo
+analítico, la plataforma \textit{ARPegio} materializa estos hallazgos en
+una experiencia operativa de extremo a extremo: el analista supervisa
+métricas y separabilidad del modelo, explora el compromiso del umbral de
+forma interactiva, recorre la cola priorizada con contexto topológico,
+reproduce escenarios de laboratorio con inferencia en el cliente y recibe
+asistencia del agente en modos preventivo y reactivo. Esta capa de
+presentación no sustituye la evaluación cuantitativa de las
+subsecciones anteriores, sino que la hace accionable para un perfil de
+usuario no especializado en aprendizaje automático.
+
+Los resultados confirman que el monitoreo pasivo anclado en tramas
+IEEE~802.3 es viable para alertar tempranamente sobre ataques de
+suplantación y saturación en LAN institucionales simuladas. La
+combinación de detección no supervisada, priorización heurística e
+interfaz de operación constituye una respuesta coherente a la brecha
+identificada en la literatura: sistemas L2 sin agentes en los nodos,
+sin dependencia de etiquetas en entrenamiento y con un camino claro
+desde la anomalía detectada hasta la decisión del analista.
+
+Como líneas futuras se identifican: ampliar capturas para \portscan{} y
+clases minoritarias; incorporar alimentación en tiempo real o
+\textit{streaming} de ventanas L2 a la plataforma; automatizar la
+ejecución supervisada de mitigaciones sugeridas por el agente en el
+laboratorio GNS3; integrar autenticación institucional y exportación hacia
+SIEM; y validar el motor de priorización con roles heterogéneos
+(servidor/cliente/IoT) en topologías más amplias. En conjunto, el
+trabajo aporta evidencia experimental y un prototipo operativo que
+acercan la detección de anomalías en capa de enlace a un escenario
+institucional verificable y comunicable.
 
 % ---------------------------------------------------------------
 %  REFERENCES
